@@ -1,8 +1,8 @@
 # some-app-operator
-// TODO(user): Add simple overview of use/purpose
+some app deploy with all related resources in one cr yaml
 
 ## Description
-// TODO(user): An in-depth paragraph about your project and overview of use
+a demo of kubebuilder
 
 ## Getting Started
 

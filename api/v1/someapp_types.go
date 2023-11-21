@@ -17,25 +17,69 @@ limitations under the License.
 package v1
 
 import (
+	core_v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
 // SomeappSpec defines the desired state of Someapp
 type SomeappSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// Foo is an example field of Someapp. Edit someapp_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	AppName string `json:"app_name"`
+
+	// if script, will not create svc and hpa,
+	// if api, create svc and hpa
+
+	// +kubebuilder:validation:Enum=script,api
+	// +kubebuilder:default=api
+	AppType string `json:"app_type"`
+
+	// +kubebuilder:validation:Enum=stable,canary
+	// +kubebuilder:default=stable
+	// +optional
+	AppVersion string `json:"app_version"`
+
+	// stable version, tag like v1.0.0,
+	// canary version, tag like canary-v1.0.0
+
+	// +kubebuilder:validation:Pattern=^(canary-)?(v\d+\.\d+\.\d+)(\.\d+)?$
+	// +kubebuilder:default=latest
+	ImageTag string `json:"image_tag"`
+
+	ImagePullSecret string `json:"image_secret,omitempty"`
+
+	Containers []core_v1.Container `json:"containers"`
+
+	// useage:  some_volume: configMap-a or some_volume: secret-b
+	// +optional
+	SomeVolume string `json:"some_volume,omitempty"`
+
+	// usage: hpa_nums: 1-2
+	// +kubebuilder:validation:Pattern=^(\d-\d)$
+	// +optional
+	HpaNums string `json:"hpa_nums,omitempty"`
+
+	// +kubebuilder:default=100
+	// +optional
+	HpaCpuPercent int32 `json:"hpa_cpu_percent,omitempty"`
+
+	// if api_type=api and enable_istio, than create vs,dr with stable version
+	// +kubebuilder:default=false
+	// +optional
+	EnableIstio bool `json:"enable_istio,omitempty"`
 }
 
 // SomeappStatus defines the observed state of Someapp
 type SomeappStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
+	Status someAppSts `json:"status"`
+}
+
+type someAppSts struct {
+	// Phase running, failed, operating
+	Phase string `json:"phase"`
 }
 
 //+kubebuilder:object:root=true
