@@ -1,0 +1,49 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.13.0
+  name: someapps.ops.some.cn
+spec:
+  group: ops.some.cn
+  names:
+    kind: Someapp
+    listKind: SomeappList
+    plural: someapps
+    singular: someapp
+  scope: Namespaced
+  versions:
+  - name: v1
+    schema:
+      openAPIV3Schema:
+        description: Someapp is the Schema for the someapps API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: SomeappSpec defines the desired state of Someapp
+            properties:
+              foo:
+                description: Foo is an example field of Someapp. Edit someapp_types.go
+                  to remove/update
+                type: string
+            type: object
+          status:
+            description: SomeappStatus defines the observed state of Someapp
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

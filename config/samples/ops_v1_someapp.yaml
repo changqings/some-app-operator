@@ -1,0 +1,12 @@
+apiVersion: ops.some.cn/v1
+kind: Someapp
+metadata:
+  labels:
+    app.kubernetes.io/name: someapp
+    app.kubernetes.io/instance: someapp-sample
+    app.kubernetes.io/part-of: some-app-operator
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: some-app-operator
+  name: someapp-sample
+spec:
+  # TODO(user): Add fields here

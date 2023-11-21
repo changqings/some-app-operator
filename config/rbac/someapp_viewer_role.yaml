@@ -1,0 +1,27 @@
+# permissions for end users to view someapps.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/instance: someapp-viewer-role
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: some-app-operator
+    app.kubernetes.io/part-of: some-app-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: someapp-viewer-role
+rules:
+- apiGroups:
+  - ops.some.cn
+  resources:
+  - someapps
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ops.some.cn
+  resources:
+  - someapps/status
+  verbs:
+  - get
