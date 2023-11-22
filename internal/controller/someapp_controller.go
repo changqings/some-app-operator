@@ -66,7 +66,7 @@ type SomeappReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.16.3/pkg/reconcile
 func (r *SomeappReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := log.FromContext(ctx).WithValues("someapp-collector", req.NamespacedName)
+	log := log.FromContext(ctx).WithValues("someapp-reconcile", req.NamespacedName)
 	timeAfter := time.Second * 3
 	record := r.Recorder
 
