@@ -123,6 +123,7 @@ func (r *SomeappReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 
 		}
 
+		// update alway exec, no matter resources version changed or not
 		if deployment.ResourceVersion != "" {
 			deployment.ResourceVersion = "0"
 		}
