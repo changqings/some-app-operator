@@ -27,11 +27,11 @@ import (
 type SomeappSpec struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
+	// application name
 	AppName string `json:"app_name"`
 
 	// if script, will not create svc and hpa,
 	// if api, create svc and hpa
-
 	// +kubebuilder:validation:Enum=script;api
 	// +kubebuilder:default=api
 	AppType string `json:"app_type"`
@@ -48,7 +48,7 @@ type SomeappSpec struct {
 	// +kubebuilder:default=latest
 	ImageTag string `json:"image_tag"`
 
-	ImagePullSecret string `json:"image_secret,omitempty"`
+	ImagePullSecret string `json:"image_secret"`
 
 	Containers []core_v1.Container `json:"containers"`
 

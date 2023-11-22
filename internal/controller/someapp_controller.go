@@ -31,7 +31,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/recorder"
 
 	opsv1 "github.com/changqings/some-app-operator/api/v1"
 )
@@ -50,7 +49,7 @@ type SomeappReconciler struct {
 	Scheme *runtime.Scheme
 
 	//
-	Recorder recorder.Provider
+	// Recorder recorder.Provider
 }
 
 //+kubebuilder:rbac:groups=ops.some.cn,resources=someapps,verbs=get;list;watch;create;update;patch;delete
@@ -70,7 +69,7 @@ type SomeappReconciler struct {
 func (r *SomeappReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx).WithValues("someapp-collector", req.NamespacedName)
 	timeAfter := time.Second * 3
-	record := r.Recorder.GetEventRecorderFor("some_app")
+	// record := r.Recorder.GetEventRecorderFor("some_app")
 
 	someApp := &opsv1.Someapp{}
 	result := ctrl.Result{}
@@ -81,7 +80,7 @@ func (r *SomeappReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			result.RequeueAfter = timeAfter
 			return result, nil
 		}
-		record.Event(someApp, core_v1.EventTypeWarning, "reconcile err", "r.Get() err")
+		// record.Event(someApp, core_v1.EventTypeWarning, "reconcile err", "r.Get() err")
 		log.Error(err, "r.Get()", "not found someApp")
 		return result, client.IgnoreNotFound(err)
 	}
@@ -216,7 +215,7 @@ func (r *SomeappReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&opsv1.Someapp{}).
 		Owns(&apps_v1.Deployment{}).
 		WithOptions(controller.Options{
-			MaxConcurrentReconciles: 2,
+			MaxConcurrentReconciles: 1,
 		}).
 		Complete(r)
 }
