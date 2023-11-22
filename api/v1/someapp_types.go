@@ -44,7 +44,7 @@ type SomeappSpec struct {
 	// stable version, tag like v1.0.0,
 	// canary version, tag like canary-v1.0.0
 
-	// +kubebuilder:validation:Pattern=(canary-)?(v\d+\.\d+\.\d+)(\.\d+)?
+	// +kubebuilder:validation:Pattern=(latest|(canary-)?(v\d+\.\d+\.\d+)(\.\d+)?)
 	// +kubebuilder:default=latest
 	ImageTag string `json:"image_tag"`
 
