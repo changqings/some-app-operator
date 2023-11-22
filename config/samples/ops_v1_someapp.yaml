@@ -9,4 +9,12 @@ metadata:
     app.kubernetes.io/created-by: some-app-operator
   name: someapp-sample
 spec:
-  # TODO(user): Add fields here
+  app_name: "test"
+  app_type: "api"
+  app_version: "stable"
+  containers:
+  - name: app
+    image: nginx:alpine
+  image_secret: qcloudregistrykey
+  image_tag: v0.0.1
+  some_volume: configmap-higress-ca-root-cert

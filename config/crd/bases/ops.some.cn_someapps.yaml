@@ -35,9 +35,12 @@ spec:
             description: SomeappSpec defines the desired state of Someapp
             properties:
               app_name:
+                description: application name
                 type: string
               app_type:
                 default: api
+                description: if script, will not create svc and hpa, if api, create
+                  svc and hpa
                 enum:
                 - script
                 - api
@@ -1348,7 +1351,7 @@ spec:
                 type: string
               image_tag:
                 default: latest
-                pattern: ^(canary-)?(v\d+\.\d+\.\d+)(\.\d+)?$
+                pattern: (latest|(canary-)?(v\d+\.\d+\.\d+)(\.\d+)?)
                 type: string
               some_volume:
                 description: 'useage:  some_volume: configmap-a or some_volume: secret-b'
@@ -1357,6 +1360,7 @@ spec:
             - app_name
             - app_type
             - containers
+            - image_secret
             - image_tag
             type: object
           status:
