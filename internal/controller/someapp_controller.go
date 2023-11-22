@@ -123,6 +123,10 @@ func (r *SomeappReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 
 		}
 
+		if deployment.ResourceVersion != "" {
+			deployment.ResourceVersion = "0"
+		}
+
 		if n := strings.TrimPrefix(someVolume, "configmap-"); len(n) > 0 {
 			volumeType = volumeTypeConfigMap
 			volumeName = n
@@ -209,14 +213,13 @@ func (r *SomeappReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 
 	})
 	if err != nil {
-		return ctrl.Result{RequeueAfter: time.Second * 2}, err
+		return result, err
 	}
 	log.Info("deployment reconcile success", "operation", op)
-
 	// and add another reconcile
 
-	someApp.Status.Status.Phase = "Running"
-	r.Status().Update(ctx, someApp)
+	// someApp.Status.Status.Phase = "Running"
+	// r.Status().Update(ctx, someApp)
 	return result, nil
 }
 
