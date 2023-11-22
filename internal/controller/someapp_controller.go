@@ -26,6 +26,7 @@ import (
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -49,7 +50,7 @@ type SomeappReconciler struct {
 	Scheme *runtime.Scheme
 
 	//
-	// Recorder recorder.Provider
+	Recorder record.EventRecorder
 }
 
 //+kubebuilder:rbac:groups=ops.some.cn,resources=someapps,verbs=get;list;watch;create;update;patch;delete
@@ -69,7 +70,7 @@ type SomeappReconciler struct {
 func (r *SomeappReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx).WithValues("someapp-collector", req.NamespacedName)
 	timeAfter := time.Second * 3
-	// record := r.Recorder.GetEventRecorderFor("some_app")
+	record := r.Recorder
 
 	someApp := &opsv1.Someapp{}
 	result := ctrl.Result{}
@@ -80,14 +81,15 @@ func (r *SomeappReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			result.RequeueAfter = timeAfter
 			return result, nil
 		}
-		// record.Event(someApp, core_v1.EventTypeWarning, "reconcile err", "r.Get() err")
+
+		record.Eventf(someApp, core_v1.EventTypeWarning, "reconcile err", "msg", err)
 		log.Error(err, "r.Get()", "not found someApp")
 		return result, client.IgnoreNotFound(err)
 	}
 
 	// reconcile deployment
 	deployment := &apps_v1.Deployment{ObjectMeta: meta_v1.ObjectMeta{
-		Name:      someApp.Spec.AppName,
+		Name:      someApp.Name,
 		Namespace: someApp.Namespace,
 	}}
 
@@ -172,6 +174,7 @@ func (r *SomeappReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 					Name:      volumeName,
 					ReadOnly:  true,
 					MountPath: "/app/" + volumeMountFileName,
+					SubPath:   volumeMountFileName,
 				},
 			}
 		case volumeTypeSecret:
@@ -190,10 +193,16 @@ func (r *SomeappReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 					Name:      volumeName,
 					ReadOnly:  true,
 					MountPath: "/app/" + volumeMountFileName,
+					SubPath:   volumeMountFileName,
 				},
 			}
 		case volumeTypeUnknown:
 			log.Info("volume type unknown", "spec.some_volume", someVolume)
+		}
+
+		// add reference
+		if err := controllerutil.SetOwnerReference(someApp, deployment, r.Scheme); err != nil {
+			return err
 		}
 
 		return nil
@@ -206,6 +215,8 @@ func (r *SomeappReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 
 	// and add another reconcile
 
+	someApp.Status.Status.Phase = "Running"
+	r.Status().Update(ctx, someApp)
 	return result, nil
 }
 
