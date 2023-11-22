@@ -32,11 +32,11 @@ type SomeappSpec struct {
 	// if script, will not create svc and hpa,
 	// if api, create svc and hpa
 
-	// +kubebuilder:validation:Enum=script,api
+	// +kubebuilder:validation:Enum=script;api
 	// +kubebuilder:default=api
 	AppType string `json:"app_type"`
 
-	// +kubebuilder:validation:Enum=stable,canary
+	// +kubebuilder:validation:Enum=stable;canary
 	// +kubebuilder:default=stable
 	// +optional
 	AppVersion string `json:"app_version"`
