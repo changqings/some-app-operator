@@ -1,1 +1,156 @@
 package deployment
+
+import (
+	"context"
+	"strings"
+
+	apps_v1 "k8s.io/api/apps/v1"
+	core_v1 "k8s.io/api/core/v1"
+	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+
+	opsv1 "github.com/changqings/some-app-operator/api/v1"
+	"github.com/go-logr/logr"
+)
+
+type SomeDeployment struct {
+}
+
+func (sd *SomeDeployment) Reconcile(ctx context.Context, someApp *opsv1.Someapp, client client.Client, scheme *runtime.Scheme, log logr.Logger) error {
+
+	var (
+		volumeType          string
+		volumeName          string
+		appContainerIndex   int
+		someVolume          = someApp.Spec.SomeVolume
+		volumeTypeConfigMap = "configmap"
+		volumeTypeSecret    = "secret"
+		volumeTypeUnknown   = "unknown"
+		// this is the file name of configMap
+		volumeMountFileName = "some_config.yaml"
+		standardLabels      = map[string]string{
+			"app":     someApp.Spec.AppName,
+			"name":    someApp.Name,
+			"type":    someApp.Spec.AppType,
+			"version": someApp.Spec.AppVersion,
+		}
+	)
+
+	// reconcile deployment
+	deployment := &apps_v1.Deployment{ObjectMeta: meta_v1.ObjectMeta{
+		Name:      someApp.Name,
+		Namespace: someApp.Namespace,
+	}}
+
+	op, err := controllerutil.CreateOrUpdate(ctx, client, deployment, func() error {
+
+		// check deployment if existed, if not do something
+		// spec.selector is immutable, so set it when create
+		if deployment.ObjectMeta.CreationTimestamp.IsZero() {
+			deployment.ObjectMeta.Labels = standardLabels
+			deployment.Spec.Selector = &meta_v1.LabelSelector{
+				MatchLabels: standardLabels,
+			}
+
+		}
+
+		// update alway exec, no matter resources version changed or not
+		if deployment.ResourceVersion != "" {
+			deployment.ResourceVersion = "0"
+		}
+
+		if n := strings.TrimPrefix(someVolume, "configmap-"); len(n) > 0 {
+			volumeType = volumeTypeConfigMap
+			volumeName = n
+		} else if n := strings.TrimPrefix(someVolume, "secret-"); len(n) > 0 {
+			volumeType = volumeTypeSecret
+			volumeName = n
+		} else {
+			volumeType = volumeTypeUnknown
+		}
+
+		for i, c := range deployment.Spec.Template.Spec.Containers {
+			if c.Name == "app" {
+				appContainerIndex = i
+				break
+			}
+		}
+
+		// create or update deployment with default template
+		deployment.Spec.Template = core_v1.PodTemplateSpec{
+			ObjectMeta: meta_v1.ObjectMeta{
+				Labels: standardLabels,
+			},
+			Spec: core_v1.PodSpec{
+				Containers: someApp.Spec.Containers,
+				ImagePullSecrets: []core_v1.LocalObjectReference{
+					{
+						Name: someApp.Spec.ImagePullSecret,
+					},
+				},
+			},
+		}
+
+		switch volumeType {
+		case volumeTypeConfigMap:
+			deployment.Spec.Template.Spec.Volumes = []core_v1.Volume{
+				{
+					Name: volumeName,
+					VolumeSource: core_v1.VolumeSource{
+						ConfigMap: &core_v1.ConfigMapVolumeSource{
+							LocalObjectReference: core_v1.LocalObjectReference{
+								Name: volumeName,
+							},
+						},
+					},
+				},
+			}
+			deployment.Spec.Template.Spec.Containers[appContainerIndex].VolumeMounts = []core_v1.VolumeMount{
+				{
+					Name:      volumeName,
+					ReadOnly:  true,
+					MountPath: "/app/" + volumeMountFileName,
+					SubPath:   volumeMountFileName,
+				},
+			}
+		case volumeTypeSecret:
+			deployment.Spec.Template.Spec.Volumes = []core_v1.Volume{
+				{
+					Name: volumeName,
+					VolumeSource: core_v1.VolumeSource{
+						Secret: &core_v1.SecretVolumeSource{
+							SecretName: volumeName,
+						},
+					},
+				},
+			}
+			deployment.Spec.Template.Spec.Containers[appContainerIndex].VolumeMounts = []core_v1.VolumeMount{
+				{
+					Name:      volumeName,
+					ReadOnly:  true,
+					MountPath: "/app/" + volumeMountFileName,
+					SubPath:   volumeMountFileName,
+				},
+			}
+		case volumeTypeUnknown:
+			log.Info("volume type unknown", "spec.some_volume", someVolume)
+		}
+
+		// add reference
+		if err := controllerutil.SetOwnerReference(someApp, deployment, scheme); err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
+
+	log.Info("deployment reconcile success", "operation", op)
+	return nil
+
+}
