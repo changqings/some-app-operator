@@ -209,7 +209,7 @@ func (r *SomeappReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 
 	})
 	if err != nil {
-		return result, err
+		return ctrl.Result{RequeueAfter: time.Second * 2}, err
 	}
 	log.Info("deployment reconcile success", "operation", op)
 
