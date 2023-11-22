@@ -52,7 +52,7 @@ type SomeappSpec struct {
 
 	Containers []core_v1.Container `json:"containers"`
 
-	// useage:  some_volume: configMap-a or some_volume: secret-b
+	// useage:  some_volume: configmap-a or some_volume: secret-b
 	// +optional
 	SomeVolume string `json:"some_volume,omitempty"`
 
