@@ -56,9 +56,9 @@ type SomeappSpec struct {
 	// +optional
 	SomeVolume string `json:"some_volume,omitempty"`
 
-	// usage: hpa_nums: 1-2
-	// +kubebuilder:validation:Pattern=(\d+\-\d+)
-	// +kubebuilder:default=1-2
+	// usage: hpa_nums: 1->2
+	// +kubebuilder:validation:Pattern=(\d+\->\d+)
+	// +kubebuilder:default=1->2
 	// +optional
 	HpaNums string `json:"hpa_nums,omitempty"`
 
