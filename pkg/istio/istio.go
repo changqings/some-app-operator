@@ -72,7 +72,7 @@ func (si *SomeIstio) Reconcile(ctx context.Context, someApp *opsv1.Someapp, clie
 	if err != nil {
 		return err
 	}
-	log.Info("service reconcile success", "operation_result", op_dr)
+	log.Info("dr reconcile success", "operation_result", op_dr)
 
 	op_vs, err := controllerutil.CreateOrUpdate(ctx, client, vs, func() error {
 
@@ -110,7 +110,7 @@ func (si *SomeIstio) Reconcile(ctx context.Context, someApp *opsv1.Someapp, clie
 	if err != nil {
 		return err
 	}
-	log.Info("service reconcile success", "operation_result", op_vs)
+	log.Info("vs reconcile success", "operation_result", op_vs)
 
 	return nil
 

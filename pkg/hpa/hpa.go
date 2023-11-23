@@ -74,6 +74,7 @@ func (sh *SomeHpa) Reconcile(ctx context.Context, someApp *opsv1.Someapp, client
 			},
 			Metrics: []autoscalingv2.MetricSpec{
 				{
+					Type: autoscalingv2.ResourceMetricSourceType,
 					Resource: &autoscalingv2.ResourceMetricSource{
 						Name: core_v1.ResourceCPU,
 						Target: autoscalingv2.MetricTarget{
