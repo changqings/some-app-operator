@@ -37,14 +37,12 @@ type SomeappSpec struct {
 	// should be only in (stable,canary), default appVersion=stable,
 	// when canaryTAg!=stable, then appVerson=canary
 	// +kubebuilder:validation:Enum=stable;canary
-	// +kubebuilder:default=stable
 	// +optional
 	AppVersion string `json:"appVersion"`
 
 	// used in labels,
 	// defalut canaryTag=stable, or must like canary-v1.0.0,
 	// +kubebuilder:validation:Pattern=(stable|(canary-v\d+\.\d+\.\d+)(\.\d+)?)
-	// +kubebuilder:default=stable
 	// +optional
 	CanaryTag string `json:"canaryTag"`
 

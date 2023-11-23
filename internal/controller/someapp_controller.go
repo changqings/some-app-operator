@@ -91,10 +91,20 @@ func (r *SomeappReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	// there are getting someApp, do some operation
 	if someApp.Spec.CanaryTag != "stable" {
 		someApp.Spec.AppVersion = "canary"
+	} else {
+		someApp.Spec.AppVersion = "stable"
+	}
+
+	standardLabels := map[string]string{
+		"name":    someApp.Name,
+		"app":     someApp.Spec.AppName,
+		"type":    someApp.Spec.AppType,
+		"version": someApp.Spec.AppVersion,
+		"canary":  someApp.Spec.CanaryTag,
 	}
 
 	// deployment reconcile
-	sd := deployment.SomeDeployment{}
+	sd := deployment.SomeDeployment{StandardLabels: standardLabels}
 	err = sd.Reconcile(ctx, someApp, r.Client, r.Scheme, log)
 	if err != nil {
 		someApp.Status.Status.Phase = STATUS_ERROR
@@ -104,7 +114,7 @@ func (r *SomeappReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 
 	// hpa
 	if len(someApp.Spec.HpaNums) > 0 {
-		sh := hpa.SomeHpa{}
+		sh := hpa.SomeHpa{StandardLabels: standardLabels}
 		err = sh.Reconcile(ctx, someApp, r.Client, r.Scheme, log)
 		if err != nil {
 			someApp.Status.Status.Phase = STATUS_ERROR
@@ -115,7 +125,7 @@ func (r *SomeappReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 
 	// svc
 	if strings.HasPrefix(someApp.Spec.AppType, "api") {
-		sv := service.SomeService{}
+		sv := service.SomeService{StandardLabels: standardLabels}
 		err = sv.Reconcile(ctx, someApp, r.Client, r.Scheme, log)
 		if err != nil {
 			someApp.Status.Status.Phase = STATUS_ERROR

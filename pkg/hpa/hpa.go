@@ -18,6 +18,7 @@ import (
 )
 
 type SomeHpa struct {
+	StandardLabels map[string]string
 }
 
 func (sh *SomeHpa) Reconcile(ctx context.Context, someApp *opsv1.Someapp, client client.Client, scheme *runtime.Scheme, log logr.Logger) error {
@@ -25,13 +26,6 @@ func (sh *SomeHpa) Reconcile(ctx context.Context, someApp *opsv1.Someapp, client
 	var (
 		someHpaNums    = someApp.Spec.HpaNums
 		hpaMin, hpaMax int64
-		standardLabels = map[string]string{
-			"name":    someApp.Name,
-			"app":     someApp.Spec.AppName,
-			"type":    someApp.Spec.AppType,
-			"version": someApp.Spec.AppVersion,
-			"canary":  someApp.Spec.CanaryTag,
-		}
 	)
 
 	// reconcile hpa
@@ -46,7 +40,7 @@ func (sh *SomeHpa) Reconcile(ctx context.Context, someApp *opsv1.Someapp, client
 
 		// check  if existed, if not do something
 		if hpa.ObjectMeta.CreationTimestamp.IsZero() {
-			hpa.ObjectMeta.Labels = standardLabels
+			hpa.ObjectMeta.Labels = sh.StandardLabels
 		}
 
 		// update always exec, no matter what resources version changed or not

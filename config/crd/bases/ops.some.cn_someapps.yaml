@@ -42,7 +42,6 @@ spec:
                 description: prefix has api, then create svc
                 type: string
               appVersion:
-                default: stable
                 description: should be only in (stable,canary), default appVersion=stable,
                   when canaryTAg!=stable, then appVerson=canary
                 enum:
@@ -50,7 +49,6 @@ spec:
                 - canary
                 type: string
               canaryTag:
-                default: stable
                 description: used in labels, defalut canaryTag=stable, or must like
                   canary-v1.0.0,
                 pattern: (stable|(canary-v\d+\.\d+\.\d+)(\.\d+)?)

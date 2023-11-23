@@ -16,6 +16,7 @@ import (
 )
 
 type SomeDeployment struct {
+	StandardLabels map[string]string
 }
 
 func (sd *SomeDeployment) Reconcile(ctx context.Context, someApp *opsv1.Someapp, client client.Client, scheme *runtime.Scheme, log logr.Logger) error {
@@ -30,13 +31,6 @@ func (sd *SomeDeployment) Reconcile(ctx context.Context, someApp *opsv1.Someapp,
 		volumeTypeUnknown   = "unknown"
 		// this is the file name of configMap
 		volumeMountFileName = "some_config.yaml"
-		standardLabels      = map[string]string{
-			"name":    someApp.Name,
-			"app":     someApp.Spec.AppName,
-			"type":    someApp.Spec.AppType,
-			"version": someApp.Spec.AppVersion,
-			"canary":  someApp.Spec.CanaryTag,
-		}
 	)
 
 	// reconcile deployment
@@ -50,9 +44,9 @@ func (sd *SomeDeployment) Reconcile(ctx context.Context, someApp *opsv1.Someapp,
 		// check deployment if existed, if not do something
 		// spec.selector is immutable, so set it when create
 		if deployment.ObjectMeta.CreationTimestamp.IsZero() {
-			deployment.ObjectMeta.Labels = standardLabels
+			deployment.ObjectMeta.Labels = sd.StandardLabels
 			deployment.Spec.Selector = &meta_v1.LabelSelector{
-				MatchLabels: standardLabels,
+				MatchLabels: sd.StandardLabels,
 			}
 
 		}
@@ -82,7 +76,7 @@ func (sd *SomeDeployment) Reconcile(ctx context.Context, someApp *opsv1.Someapp,
 		// create or update deployment with template
 		deployment.Spec.Template = core_v1.PodTemplateSpec{
 			ObjectMeta: meta_v1.ObjectMeta{
-				Labels: standardLabels,
+				Labels: sd.StandardLabels,
 			},
 			Spec: core_v1.PodSpec{
 				Containers: someApp.Spec.Containers,

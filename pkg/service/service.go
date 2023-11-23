@@ -19,18 +19,12 @@ import (
 // only select someApp.Spec.AppType="api"
 // labelSelector  targetPort="http"
 type SomeService struct {
+	StandardLabels map[string]string
 }
 
 func (sv *SomeService) Reconcile(ctx context.Context, someApp *opsv1.Someapp, client client.Client, scheme *runtime.Scheme, log logr.Logger) error {
 
 	var (
-		standardLabels = map[string]string{
-			"name":    someApp.Name,
-			"app":     someApp.Spec.AppName,
-			"type":    someApp.Spec.AppType,
-			"version": someApp.Spec.AppVersion,
-			"canary":  someApp.Spec.CanaryTag,
-		}
 		selectTargetLabels = map[string]string{
 			"name":    someApp.Name,
 			"type":    someApp.Spec.AppType,
@@ -62,7 +56,7 @@ func (sv *SomeService) Reconcile(ctx context.Context, someApp *opsv1.Someapp, cl
 	op, err := controllerutil.CreateOrUpdate(ctx, client, service, func() error {
 
 		if service.ObjectMeta.CreationTimestamp.IsZero() {
-			service.ObjectMeta.Labels = standardLabels
+			service.ObjectMeta.Labels = sv.StandardLabels
 		}
 
 		if service.ResourceVersion != "" {

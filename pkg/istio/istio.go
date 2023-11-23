@@ -24,9 +24,9 @@ type SomeIstio struct {
 
 func (si *SomeIstio) Reconcile(ctx context.Context, someApp *opsv1.Someapp, client client.Client, scheme *runtime.Scheme, log logr.Logger) error {
 	var (
-		svcHost        = someApp.Spec.AppName + "." + someApp.Namespace + "." + "svc.cluster.local"
-		routerName     = someApp.Name + "-" + someApp.Spec.AppVersion
-		standardLabels = map[string]string{
+		svcHost      = someApp.Spec.AppName + "." + someApp.Namespace + "." + "svc.cluster.local"
+		routerName   = someApp.Name + "-" + someApp.Spec.AppVersion
+		selectLabels = map[string]string{
 			"name":    someApp.Name,
 			"app":     someApp.Spec.AppName,
 			"type":    someApp.Spec.AppType,
@@ -53,7 +53,7 @@ func (si *SomeIstio) Reconcile(ctx context.Context, someApp *opsv1.Someapp, clie
 	op_dr, err := controllerutil.CreateOrUpdate(ctx, client, dr, func() error {
 
 		if dr.ObjectMeta.CreationTimestamp.IsZero() {
-			dr.ObjectMeta.Labels = standardLabels
+			dr.ObjectMeta.Labels = selectLabels
 		}
 
 		dr.Spec = istio_api_network_v1beta1.DestinationRule{
@@ -83,7 +83,7 @@ func (si *SomeIstio) Reconcile(ctx context.Context, someApp *opsv1.Someapp, clie
 	op_vs, err := controllerutil.CreateOrUpdate(ctx, client, vs, func() error {
 
 		if vs.ObjectMeta.CreationTimestamp.IsZero() {
-			vs.ObjectMeta.Labels = standardLabels
+			vs.ObjectMeta.Labels = selectLabels
 		}
 
 		vs.Spec = istio_api_network_v1beta1.VirtualService{
