@@ -49,10 +49,6 @@ func (si *SomeIstio) Reconcile(ctx context.Context, someApp *opsv1.Someapp, clie
 			dr.ObjectMeta.Labels = standardLabels
 		}
 
-		if dr.ResourceVersion != "" {
-			dr.ResourceVersion = "0"
-		}
-
 		dr.Spec = istio_api_network_v1beta1.DestinationRule{
 			Host: svcHost,
 			Subsets: []*istio_api_network_v1beta1.Subset{
