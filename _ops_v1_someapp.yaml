@@ -1,0 +1,12 @@
+apiVersion: ops.some.cn/v1
+kind: Someapp
+metadata:
+  name: nginx-test
+spec:
+  appName: "nginx-test"
+  appType: "api"
+  containers:
+  - name: app
+    image: nginx:alpine
+    ports:
+    - containerPort: 80

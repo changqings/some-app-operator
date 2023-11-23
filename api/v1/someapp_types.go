@@ -22,6 +22,7 @@ import (
 )
 
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
+// x-kubernetes-validations is beta in k8s 1.25, when < 1.24, default --feature-gates is false
 
 // SomeappSpec defines the desired state of Someapp
 type SomeappSpec struct {
@@ -29,13 +30,13 @@ type SomeappSpec struct {
 
 	// application name
 	// +kubebuilder:validation:Required
-	// +kubebuilder:validation:Xvalidation:rule="self == oldSelf",message="appName is immutable"
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="appName is immutable"
 	AppName string `json:"appName"`
 
 	//  prefix has api, then create svc, changed not changed
 	// +kubebuilder:default=api
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:Xvalidation:rule="self == oldSelf",message="appName is immutable"
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="appType is immutable"
 	AppType string `json:"appType"`
 
 	// should be only in (stable,canary), default appVersion=stable,
@@ -43,7 +44,7 @@ type SomeappSpec struct {
 	// can not changed
 	// +kubebuilder:validation:Enum=stable;canary
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:Xvalidation:rule="self == oldSelf",message="appName is immutable"
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="appVersion is immutable"
 	// +optional
 	AppVersion string `json:"appVersion"`
 
@@ -52,7 +53,7 @@ type SomeappSpec struct {
 	// can not changed
 	// +kubebuilder:validation:Pattern=(stable|(canary-v\d+\.\d+\.\d+)(\.\d+)?)
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:Xvalidation:rule="self == oldSelf",message="appName is immutable"
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="canaryTag is immutable"
 	// +optional
 	CanaryTag string `json:"canaryTag"`
 
