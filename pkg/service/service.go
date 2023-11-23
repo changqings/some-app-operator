@@ -29,13 +29,29 @@ func (sv *SomeService) Reconcile(ctx context.Context, someApp *opsv1.Someapp, cl
 			"app":     someApp.Spec.AppName,
 			"type":    someApp.Spec.AppType,
 			"version": someApp.Spec.AppVersion,
+			"canary":  someApp.Spec.CanaryTag,
 		}
 		selectTargetLabels = map[string]string{
-			"type": "api",
-			"app":  someApp.Spec.AppName,
-			"name": someApp.Name,
+			"name":    someApp.Name,
+			"type":    someApp.Spec.AppType,
+			"app":     someApp.Spec.AppName,
+			"version": someApp.Spec.AppVersion,
 		}
+		appContainerPort  int32
+		appContainerIndex int
+		someAppContainer  = someApp.Spec.Containers
 	)
+
+	for i, c := range someApp.Spec.Containers {
+		if c.Name == "app" {
+			appContainerIndex = i
+			break
+		}
+	}
+
+	for _, v := range someAppContainer[appContainerIndex].Ports {
+		appContainerPort = v.ContainerPort
+	}
 
 	// reconcile deployment
 	service := &core_v1.Service{ObjectMeta: meta_v1.ObjectMeta{
@@ -61,10 +77,14 @@ func (sv *SomeService) Reconcile(ctx context.Context, someApp *opsv1.Someapp, cl
 					Name:        "http",
 					Protocol:    "TCP",
 					Port:        80,
-					TargetPort:  intstr.FromString("http"),
+					TargetPort:  intstr.FromInt32(appContainerPort),
 					AppProtocol: k8s_utils_pointer.String("http"),
 				},
 			},
+		}
+		//used with careful, should turn off this on production
+		if err := controllerutil.SetOwnerReference(someApp, service, scheme); err != nil {
+			return err
 		}
 
 		return nil

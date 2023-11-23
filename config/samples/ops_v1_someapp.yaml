@@ -1,20 +1,16 @@
 apiVersion: ops.some.cn/v1
 kind: Someapp
 metadata:
-  labels:
-    app.kubernetes.io/name: someapp
-    app.kubernetes.io/instance: someapp-sample
-    app.kubernetes.io/part-of: some-app-operator
-    app.kubernetes.io/managed-by: kustomize
-    app.kubernetes.io/created-by: some-app-operator
-  name: someapp-sample
+  name: nginx-test
 spec:
-  app_name: "test"
-  app_type: "api"
-  app_version: "stable"
+  appName: "nginx-test"
+  appType: "api"
+  hpaNums: "1->2"
+  canaryTag: canary-v0.0.1
+  enableIstio: true
   containers:
   - name: app
     image: nginx:alpine
-  image_secret: qcloudregistrykey
-  image_tag: v0.0.1
-  some_volume: configmap-higress-ca-root-cert
+    ports:
+    - containerPort: 80
+  someVolume: configmap-superconf-beta

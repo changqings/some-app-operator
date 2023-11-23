@@ -34,24 +34,29 @@ spec:
           spec:
             description: SomeappSpec defines the desired state of Someapp
             properties:
-              app_name:
+              appName:
                 description: application name
                 type: string
-              app_type:
+              appType:
                 default: api
-                description: if script, will not create svc and hpa, if api, create
-                  svc and hpa
-                enum:
-                - script
-                - api
+                description: prefix has api, then create svc
                 type: string
-              app_version:
+              appVersion:
                 default: stable
+                description: should be only in (stable,canary), default appVersion=stable,
+                  when canaryTAg!=stable, then appVerson=canary
                 enum:
                 - stable
                 - canary
                 type: string
+              canaryTag:
+                default: stable
+                description: used in labels, defalut canaryTag=stable, or must like
+                  canary-v1.0.0,
+                pattern: (stable|(canary-v\d+\.\d+\.\d+)(\.\d+)?)
+                type: string
               containers:
+                description: k8s standard containers resources
                 items:
                   description: A single application container that you want to run
                     within a pod.
@@ -1334,34 +1339,30 @@ spec:
                   - name
                   type: object
                 type: array
-              enable_istio:
+              enableIstio:
                 default: false
-                description: if api_type=api and enable_istio, than create vs,dr with
-                  stable version
+                description: only used when apiType has prefix api, appVersion=stable,
+                  create stable vs, dr appVersion=canary and CanaryTag have values,
+                  create canary vs,dr
                 type: boolean
-              hpa_cpu_percent:
+              hpaCpuPercent:
                 default: 100
+                description: hpa default cpu usage value, defautl=100
                 format: int32
                 type: integer
-              hpa_nums:
-                description: 'usage: hpa_nums: 1-2'
-                pattern: ^(\d-\d)$
+              hpaNums:
+                description: create hpa, with min-->max
+                pattern: \d+\->\d+
                 type: string
-              image_secret:
+              imageSecret:
                 type: string
-              image_tag:
-                default: latest
-                pattern: (latest|(canary-)?(v\d+\.\d+\.\d+)(\.\d+)?)
-                type: string
-              some_volume:
-                description: 'useage:  some_volume: configmap-a or some_volume: secret-b'
+              someVolume:
+                description: only use configmap or secret, like configmap-a, secret-b
                 type: string
             required:
-            - app_name
-            - app_type
+            - appName
+            - appType
             - containers
-            - image_secret
-            - image_tag
             type: object
           status:
             description: SomeappStatus defines the observed state of Someapp

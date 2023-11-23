@@ -18,8 +18,9 @@ package controller
 
 import (
 	"context"
-	"time"
+	"strings"
 
+	istio_network_v1beta1 "istio.io/client-go/pkg/apis/networking/v1beta1"
 	apps_v1 "k8s.io/api/apps/v1"
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	core_v1 "k8s.io/api/core/v1"
@@ -71,7 +72,7 @@ type SomeappReconciler struct {
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.16.3/pkg/reconcile
 func (r *SomeappReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx).WithValues("someapp-reconcile", req.NamespacedName)
-	timeAfter := time.Second * 3
+	// timeAfter := time.Second * 60
 	record := r.Recorder
 
 	someApp := &opsv1.Someapp{}
@@ -80,13 +81,16 @@ func (r *SomeappReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	err := r.Get(ctx, req.NamespacedName, someApp)
 	if err != nil {
 		if k8s_errors.IsNotFound(err) {
-			result.RequeueAfter = timeAfter
 			return result, nil
 		}
-
 		record.Eventf(someApp, core_v1.EventTypeWarning, "reconcile err", "msg", err)
 		log.Error(err, "r.Get()", "not found someApp")
 		return result, client.IgnoreNotFound(err)
+	}
+
+	// there are getting someApp, do some operation
+	if someApp.Spec.CanaryTag != "stable" {
+		someApp.Spec.AppVersion = "canary"
 	}
 
 	// deployment reconcile
@@ -95,45 +99,44 @@ func (r *SomeappReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	if err != nil {
 		someApp.Status.Status.Phase = STATUS_ERROR
 		r.Status().Update(ctx, someApp)
-		result.RequeueAfter = timeAfter
 		return result, err
 	}
 
-	// and add another reconcile
-	sv := service.SomeService{}
-	err = sv.Reconcile(ctx, someApp, r.Client, r.Scheme, log)
-	if err != nil {
-		someApp.Status.Status.Phase = STATUS_ERROR
-		r.Status().Update(ctx, someApp)
-		result.RequeueAfter = timeAfter
-		return result, err
-	}
-
+	// hpa
 	if len(someApp.Spec.HpaNums) > 0 {
 		sh := hpa.SomeHpa{}
 		err = sh.Reconcile(ctx, someApp, r.Client, r.Scheme, log)
 		if err != nil {
 			someApp.Status.Status.Phase = STATUS_ERROR
 			r.Status().Update(ctx, someApp)
-			result.RequeueAfter = timeAfter
 			return result, err
 		}
 	}
 
+	// svc
+	if strings.HasPrefix(someApp.Spec.AppType, "api") {
+		sv := service.SomeService{}
+		err = sv.Reconcile(ctx, someApp, r.Client, r.Scheme, log)
+		if err != nil {
+			someApp.Status.Status.Phase = STATUS_ERROR
+			r.Status().Update(ctx, someApp)
+			return result, err
+		}
+
+	}
+	// istio
 	if someApp.Spec.EnableIstio {
 		si := istio.SomeIstio{}
 		err = si.Reconcile(ctx, someApp, r.Client, r.Scheme, log)
 		if err != nil {
 			someApp.Status.Status.Phase = STATUS_ERROR
 			r.Status().Update(ctx, someApp)
-			result.RequeueAfter = timeAfter
 			return result, err
 		}
 	}
 
 	someApp.Status.Status.Phase = STATUS_RUNNING
 	r.Status().Update(ctx, someApp)
-	result.RequeueAfter = timeAfter
 	return result, nil
 }
 
@@ -143,6 +146,9 @@ func (r *SomeappReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&opsv1.Someapp{}).
 		Owns(&apps_v1.Deployment{}).
 		Owns(&autoscalingv2.HorizontalPodAutoscaler{}).
+		Owns(&core_v1.Service{}).
+		Owns(&istio_network_v1beta1.DestinationRule{}).
+		Owns(&istio_network_v1beta1.VirtualService{}).
 		WithOptions(controller.Options{
 			MaxConcurrentReconciles: 1,
 		}).

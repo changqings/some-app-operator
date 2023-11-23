@@ -28,47 +28,53 @@ type SomeappSpec struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	// application name
-	AppName string `json:"app_name"`
+	AppName string `json:"appName"`
 
-	// if script, will not create svc and hpa,
-	// if api, create svc and hpa
-	// +kubebuilder:validation:Enum=script;api
+	//  prefix has api, then create svc
 	// +kubebuilder:default=api
-	AppType string `json:"app_type"`
+	AppType string `json:"appType"`
 
+	// should be only in (stable,canary), default appVersion=stable,
+	// when canaryTAg!=stable, then appVerson=canary
 	// +kubebuilder:validation:Enum=stable;canary
 	// +kubebuilder:default=stable
 	// +optional
-	AppVersion string `json:"app_version"`
+	AppVersion string `json:"appVersion"`
 
-	// stable version, tag like v1.0.0,
-	// canary version, tag like canary-v1.0.0
+	// used in labels,
+	// defalut canaryTag=stable, or must like canary-v1.0.0,
+	// +kubebuilder:validation:Pattern=(stable|(canary-v\d+\.\d+\.\d+)(\.\d+)?)
+	// +kubebuilder:default=stable
+	// +optional
+	CanaryTag string `json:"canaryTag"`
 
-	// +kubebuilder:validation:Pattern=(latest|(canary-)?(v\d+\.\d+\.\d+)(\.\d+)?)
-	// +kubebuilder:default=latest
-	ImageTag string `json:"image_tag"`
+	// +optional
+	ImagePullSecret string `json:"imageSecret"`
 
-	ImagePullSecret string `json:"image_secret"`
-
+	// k8s standard containers resources
 	Containers []core_v1.Container `json:"containers"`
 
-	// useage:  some_volume: configmap-a or some_volume: secret-b
+	// only use configmap or secret,
+	// like configmap-a, secret-b
 	// +optional
-	SomeVolume string `json:"some_volume,omitempty"`
+	SomeVolume string `json:"someVolume,omitempty"`
 
-	// usage: hpa_nums: 1->2
-	// +kubebuilder:validation:Pattern=(\d+\->\d+)
+	// create hpa, with min-->max
+	// +kubebuilder:validation:Pattern=\d+\->\d+
 	// +optional
-	HpaNums string `json:"hpa_nums,omitempty"`
+	HpaNums string `json:"hpaNums,omitempty"`
 
+	// hpa default cpu usage value, defautl=100
 	// +kubebuilder:default=100
 	// +optional
-	HpaCpuPercent int32 `json:"hpa_cpu_percent,omitempty"`
+	HpaCpuPercent int32 `json:"hpaCpuPercent,omitempty"`
 
-	// if api_type=api and enable_istio, than create vs,dr with stable version
+	// only used when apiType has prefix api,
+	// appVersion=stable, create stable vs, dr
+	// appVersion=canary and CanaryTag have values, create canary vs,dr
 	// +kubebuilder:default=false
 	// +optional
-	EnableIstio bool `json:"enable_istio,omitempty"`
+	EnableIstio bool `json:"enableIstio,omitempty"`
 }
 
 // SomeappStatus defines the observed state of Someapp

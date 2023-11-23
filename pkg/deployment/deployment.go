@@ -31,10 +31,11 @@ func (sd *SomeDeployment) Reconcile(ctx context.Context, someApp *opsv1.Someapp,
 		// this is the file name of configMap
 		volumeMountFileName = "some_config.yaml"
 		standardLabels      = map[string]string{
-			"app":     someApp.Spec.AppName,
 			"name":    someApp.Name,
+			"app":     someApp.Spec.AppName,
 			"type":    someApp.Spec.AppType,
 			"version": someApp.Spec.AppVersion,
+			"canary":  someApp.Spec.CanaryTag,
 		}
 	)
 
@@ -71,7 +72,7 @@ func (sd *SomeDeployment) Reconcile(ctx context.Context, someApp *opsv1.Someapp,
 			volumeType = volumeTypeUnknown
 		}
 
-		for i, c := range deployment.Spec.Template.Spec.Containers {
+		for i, c := range someApp.Spec.Containers {
 			if c.Name == "app" {
 				appContainerIndex = i
 				break
@@ -85,12 +86,15 @@ func (sd *SomeDeployment) Reconcile(ctx context.Context, someApp *opsv1.Someapp,
 			},
 			Spec: core_v1.PodSpec{
 				Containers: someApp.Spec.Containers,
-				ImagePullSecrets: []core_v1.LocalObjectReference{
-					{
-						Name: someApp.Spec.ImagePullSecret,
-					},
-				},
 			},
+		}
+
+		if len(someApp.Spec.ImagePullSecret) > 0 {
+			deployment.Spec.Template.Spec.ImagePullSecrets = []core_v1.LocalObjectReference{
+				{
+					Name: someApp.Spec.ImagePullSecret,
+				},
+			}
 		}
 
 		switch volumeType {

@@ -30,6 +30,7 @@ func (sh *SomeHpa) Reconcile(ctx context.Context, someApp *opsv1.Someapp, client
 			"app":     someApp.Spec.AppName,
 			"type":    someApp.Spec.AppType,
 			"version": someApp.Spec.AppVersion,
+			"canary":  someApp.Spec.CanaryTag,
 		}
 	)
 

@@ -2,6 +2,7 @@ package istio
 
 import (
 	"context"
+	"strings"
 
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -23,15 +24,21 @@ type SomeIstio struct {
 
 func (si *SomeIstio) Reconcile(ctx context.Context, someApp *opsv1.Someapp, client client.Client, scheme *runtime.Scheme, log logr.Logger) error {
 	var (
-		svcHost        = someApp.Name + "." + someApp.Namespace + "." + "svc.cluster.local"
-		routerName     = someApp.Name + "-stable"
+		svcHost        = someApp.Spec.AppName + "." + someApp.Namespace + "." + "svc.cluster.local"
+		routerName     = someApp.Name + "-" + someApp.Spec.AppVersion
 		standardLabels = map[string]string{
 			"name":    someApp.Name,
 			"app":     someApp.Spec.AppName,
 			"type":    someApp.Spec.AppType,
 			"version": someApp.Spec.AppVersion,
 		}
+
+		subsetName = strings.ReplaceAll(someApp.Spec.CanaryTag, ".", "-")
 	)
+
+	if someApp.Spec.AppVersion == "canary" {
+		routerName = someApp.Name + "-" + subsetName
+	}
 
 	vs := &istio_network_v1beta1.VirtualService{ObjectMeta: meta_v1.ObjectMeta{
 		Name:      someApp.Name,
@@ -54,11 +61,15 @@ func (si *SomeIstio) Reconcile(ctx context.Context, someApp *opsv1.Someapp, clie
 			Subsets: []*istio_api_network_v1beta1.Subset{
 				{
 					Labels: map[string]string{
-						"version": "stable",
+						"canary": someApp.Spec.CanaryTag,
 					},
-					Name: "stable",
+					Name: subsetName,
 				},
 			},
+		}
+		//used with careful, should turn off this on production
+		if err := controllerutil.SetOwnerReference(someApp, dr, scheme); err != nil {
+			return err
 		}
 
 		return nil
@@ -75,10 +86,6 @@ func (si *SomeIstio) Reconcile(ctx context.Context, someApp *opsv1.Someapp, clie
 			vs.ObjectMeta.Labels = standardLabels
 		}
 
-		if vs.ResourceVersion != "" {
-			vs.ResourceVersion = "0"
-		}
-
 		vs.Spec = istio_api_network_v1beta1.VirtualService{
 			Gateways: []string{"mesh"},
 			Hosts: []string{
@@ -91,12 +98,16 @@ func (si *SomeIstio) Reconcile(ctx context.Context, someApp *opsv1.Someapp, clie
 						{
 							Destination: &istio_api_network_v1beta1.Destination{
 								Host:   svcHost,
-								Subset: "stable",
+								Subset: subsetName,
 							},
 						},
 					},
 				},
 			},
+		}
+		//used with careful, should turn off this on production
+		if err := controllerutil.SetOwnerReference(someApp, vs, scheme); err != nil {
+			return err
 		}
 
 		return nil
