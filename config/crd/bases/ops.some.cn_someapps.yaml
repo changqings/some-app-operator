@@ -39,18 +39,18 @@ spec:
                 type: string
               appType:
                 default: api
-                description: prefix has api, then create svc
+                description: prefix has api, then create svc, changed not changed
                 type: string
               appVersion:
                 description: should be only in (stable,canary), default appVersion=stable,
-                  when canaryTAg!=stable, then appVerson=canary
+                  when canaryTAg!=stable, then appVerson=canary, can not changed
                 enum:
                 - stable
                 - canary
                 type: string
               canaryTag:
                 description: used in labels, defalut canaryTag=stable, or must like
-                  canary-v1.0.0,
+                  canary-v1.0.0, can not changed
                 pattern: (stable|(canary-v\d+\.\d+\.\d+)(\.\d+)?)
                 type: string
               containers:
@@ -1359,7 +1359,6 @@ spec:
                 type: string
             required:
             - appName
-            - appType
             - containers
             type: object
           status:
