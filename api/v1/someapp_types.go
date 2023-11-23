@@ -28,22 +28,28 @@ type SomeappSpec struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	// application name
+	// +immutable
 	AppName string `json:"appName"`
 
-	//  prefix has api, then create svc
+	//  prefix has api, then create svc, changed not changed
 	// +kubebuilder:default=api
+	// +immutable
 	AppType string `json:"appType"`
 
 	// should be only in (stable,canary), default appVersion=stable,
-	// when canaryTAg!=stable, then appVerson=canary
+	// when canaryTAg!=stable, then appVerson=canary,
+	// can not changed
 	// +kubebuilder:validation:Enum=stable;canary
 	// +optional
+	// +immutable
 	AppVersion string `json:"appVersion"`
 
 	// used in labels,
 	// defalut canaryTag=stable, or must like canary-v1.0.0,
+	// can not changed
 	// +kubebuilder:validation:Pattern=(stable|(canary-v\d+\.\d+\.\d+)(\.\d+)?)
 	// +optional
+	// +immutable
 	CanaryTag string `json:"canaryTag"`
 
 	// +optional
