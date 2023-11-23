@@ -22,7 +22,6 @@ type SomeIstio struct {
 }
 
 func (si *SomeIstio) Reconcile(ctx context.Context, someApp *opsv1.Someapp, client client.Client, scheme *runtime.Scheme, log logr.Logger) error {
-
 	var (
 		svcHost        = someApp.Name + "." + someApp.Namespace + "." + "svc.cluster.local"
 		routerName     = someApp.Name + "-stable"

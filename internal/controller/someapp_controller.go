@@ -95,6 +95,7 @@ func (r *SomeappReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	if err != nil {
 		someApp.Status.Status.Phase = STATUS_ERROR
 		r.Status().Update(ctx, someApp)
+		result.RequeueAfter = timeAfter
 		return result, err
 	}
 
@@ -104,6 +105,7 @@ func (r *SomeappReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	if err != nil {
 		someApp.Status.Status.Phase = STATUS_ERROR
 		r.Status().Update(ctx, someApp)
+		result.RequeueAfter = timeAfter
 		return result, err
 	}
 
@@ -113,6 +115,7 @@ func (r *SomeappReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		if err != nil {
 			someApp.Status.Status.Phase = STATUS_ERROR
 			r.Status().Update(ctx, someApp)
+			result.RequeueAfter = timeAfter
 			return result, err
 		}
 	}
@@ -123,12 +126,14 @@ func (r *SomeappReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		if err != nil {
 			someApp.Status.Status.Phase = STATUS_ERROR
 			r.Status().Update(ctx, someApp)
+			result.RequeueAfter = timeAfter
 			return result, err
 		}
 	}
 
 	someApp.Status.Status.Phase = STATUS_RUNNING
 	r.Status().Update(ctx, someApp)
+	result.RequeueAfter = timeAfter
 	return result, nil
 }
 
