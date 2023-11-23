@@ -58,6 +58,7 @@ type SomeappSpec struct {
 
 	// usage: hpa_nums: 1-2
 	// +kubebuilder:validation:Pattern=^(\d-\d)$
+	// +kubebuilder:default=1-2
 	// +optional
 	HpaNums string `json:"hpa_nums,omitempty"`
 

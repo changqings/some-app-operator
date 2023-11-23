@@ -21,6 +21,7 @@ import (
 	"time"
 
 	apps_v1 "k8s.io/api/apps/v1"
+	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	core_v1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -32,6 +33,9 @@ import (
 
 	opsv1 "github.com/changqings/some-app-operator/api/v1"
 	"github.com/changqings/some-app-operator/pkg/deployment"
+	"github.com/changqings/some-app-operator/pkg/hpa"
+	"github.com/changqings/some-app-operator/pkg/istio"
+	"github.com/changqings/some-app-operator/pkg/service"
 )
 
 const (
@@ -89,13 +93,40 @@ func (r *SomeappReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	sd := deployment.SomeDeployment{}
 	err = sd.Reconcile(ctx, someApp, r.Client, r.Scheme, log)
 	if err != nil {
+		someApp.Status.Status.Phase = STATUS_ERROR
+		r.Status().Update(ctx, someApp)
 		return result, err
 	}
 
 	// and add another reconcile
+	sv := service.SomeService{}
+	err = sv.Reconcile(ctx, someApp, r.Client, r.Scheme, log)
+	if err != nil {
+		someApp.Status.Status.Phase = STATUS_ERROR
+		r.Status().Update(ctx, someApp)
+		return result, err
+	}
 
-	// someApp.Status.Status.Phase = "Running"
-	// r.Status().Update(ctx, someApp)
+	sh := hpa.SomeHpa{}
+	err = sh.Reconcile(ctx, someApp, r.Client, r.Scheme, log)
+	if err != nil {
+		someApp.Status.Status.Phase = STATUS_ERROR
+		r.Status().Update(ctx, someApp)
+		return result, err
+	}
+
+	if someApp.Spec.EnableIstio {
+		si := istio.SomeIstio{}
+		err = si.Reconcile(ctx, someApp, r.Client, r.Scheme, log)
+		if err != nil {
+			someApp.Status.Status.Phase = STATUS_ERROR
+			r.Status().Update(ctx, someApp)
+			return result, err
+		}
+	}
+
+	someApp.Status.Status.Phase = STATUS_RUNNING
+	r.Status().Update(ctx, someApp)
 	return result, nil
 }
 
@@ -104,6 +135,7 @@ func (r *SomeappReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&opsv1.Someapp{}).
 		Owns(&apps_v1.Deployment{}).
+		Owns(&autoscalingv2.HorizontalPodAutoscaler{}).
 		WithOptions(controller.Options{
 			MaxConcurrentReconciles: 1,
 		}).

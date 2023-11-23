@@ -56,7 +56,7 @@ func (sd *SomeDeployment) Reconcile(ctx context.Context, someApp *opsv1.Someapp,
 
 		}
 
-		// update alway exec, no matter resources version changed or not
+		// update always exec, no matter what resources version changed or not
 		if deployment.ResourceVersion != "" {
 			deployment.ResourceVersion = "0"
 		}
@@ -78,7 +78,7 @@ func (sd *SomeDeployment) Reconcile(ctx context.Context, someApp *opsv1.Someapp,
 			}
 		}
 
-		// create or update deployment with default template
+		// create or update deployment with template
 		deployment.Spec.Template = core_v1.PodTemplateSpec{
 			ObjectMeta: meta_v1.ObjectMeta{
 				Labels: standardLabels,
@@ -150,7 +150,7 @@ func (sd *SomeDeployment) Reconcile(ctx context.Context, someApp *opsv1.Someapp,
 		return err
 	}
 
-	log.Info("deployment reconcile success", "operation", op)
+	log.Info("deployment reconcile success", "operation_result", op)
 	return nil
 
 }
