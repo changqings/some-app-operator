@@ -53,7 +53,7 @@ func (sh *SomeHpa) Reconcile(ctx context.Context, someApp *opsv1.Someapp, client
 			hpa.ResourceVersion = "0"
 		}
 
-		hpaMinMaxs := strings.Split(someHpaNums, "-")
+		hpaMinMaxs := strings.Split(someHpaNums, "->")
 		if len(hpaMinMaxs) == 2 {
 			hpaMin, _ = strconv.ParseInt(hpaMinMaxs[0], 10, 64)
 			hpaMax, _ = strconv.ParseInt(hpaMinMaxs[1], 10, 64)

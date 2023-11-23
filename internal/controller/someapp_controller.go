@@ -107,12 +107,14 @@ func (r *SomeappReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return result, err
 	}
 
-	sh := hpa.SomeHpa{}
-	err = sh.Reconcile(ctx, someApp, r.Client, r.Scheme, log)
-	if err != nil {
-		someApp.Status.Status.Phase = STATUS_ERROR
-		r.Status().Update(ctx, someApp)
-		return result, err
+	if len(someApp.Spec.HpaNums) > 0 {
+		sh := hpa.SomeHpa{}
+		err = sh.Reconcile(ctx, someApp, r.Client, r.Scheme, log)
+		if err != nil {
+			someApp.Status.Status.Phase = STATUS_ERROR
+			r.Status().Update(ctx, someApp)
+			return result, err
+		}
 	}
 
 	if someApp.Spec.EnableIstio {
