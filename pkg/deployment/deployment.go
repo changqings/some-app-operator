@@ -132,7 +132,7 @@ func (sd *SomeDeployment) Reconcile(ctx context.Context, someApp *opsv1.Someapp,
 				},
 			}
 		case volumeTypeUnknown:
-			log.Info("volume type unknown", "spec.some_volume", someVolume)
+			log.Info("volume type unknown", "only start with configmap- or secret-, but get someVolume", someVolume)
 		}
 
 		// add reference

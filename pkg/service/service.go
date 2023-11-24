@@ -76,7 +76,6 @@ func (sv *SomeService) Reconcile(ctx context.Context, someApp *opsv1.Someapp, cl
 				},
 			},
 		}
-		//used with careful, should turn off this on production
 		if err := controllerutil.SetOwnerReference(someApp, service, scheme); err != nil {
 			return err
 		}

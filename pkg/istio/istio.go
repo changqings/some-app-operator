@@ -67,7 +67,7 @@ func (si *SomeIstio) Reconcile(ctx context.Context, someApp *opsv1.Someapp, clie
 				},
 			},
 		}
-		//used with careful, should turn off this on production
+
 		if err := controllerutil.SetOwnerReference(someApp, dr, scheme); err != nil {
 			return err
 		}

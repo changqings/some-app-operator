@@ -53,7 +53,7 @@ type SomeappReconciler struct {
 	Scheme *runtime.Scheme
 
 	//
-	Recorder record.EventRecorder
+	EventRecorder record.EventRecorder
 }
 
 //+kubebuilder:rbac:groups=ops.some.cn,resources=someapps,verbs=get;list;watch;create;update;patch;delete
@@ -61,6 +61,7 @@ type SomeappReconciler struct {
 //+kubebuilder:rbac:groups=ops.some.cn,resources=someapps/finalizers,verbs=update
 //+kubebuilder:rbac:groups=apps,resources=deployments,verbs=*
 //+kubebuilder:rbac:groups=core,resources=services,verbs=*
+//+kubebuilder:rbac:groups=core,resources=events,verbs=create;patch
 //+kubebuilder:rbac:groups=autoscaling,resources=horizontalpodautoscalers,verbs=*
 //+kubebuilder:rbac:groups=networking.istio.io,resources=virtualservices,verbs=*
 //+kubebuilder:rbac:groups=networking.istio.io,resources=destinationrules,verbs=*
@@ -73,7 +74,7 @@ type SomeappReconciler struct {
 func (r *SomeappReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx).WithValues("someapp-reconcile", req.NamespacedName)
 	// timeAfter := time.Second * 60
-	record := r.Recorder
+	eventRecord := r.EventRecorder
 
 	someApp := &opsv1.Someapp{}
 	result := ctrl.Result{}
@@ -83,7 +84,7 @@ func (r *SomeappReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		if k8s_errors.IsNotFound(err) {
 			return result, nil
 		}
-		record.Eventf(someApp, core_v1.EventTypeWarning, "reconcile err", "msg", err)
+		eventRecord.Eventf(someApp, core_v1.EventTypeWarning, "Get", "Get someapp %s.%s, %s", someApp.Name, someApp.Namespace, "not found")
 		log.Error(err, "r.Get()", "not found someApp")
 		return result, client.IgnoreNotFound(err)
 	}
@@ -146,6 +147,7 @@ func (r *SomeappReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	}
 
 	someApp.Status.Status.Phase = STATUS_RUNNING
+	eventRecord.Eventf(someApp, core_v1.EventTypeNormal, "Updated", "Updated someapp %s.%s", someApp.Name, someApp.Namespace)
 	r.Status().Update(ctx, someApp)
 	return result, nil
 }
