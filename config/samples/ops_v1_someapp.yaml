@@ -6,11 +6,8 @@ spec:
   appName: "nginx-test"
   appType: "api"
   hpaNums: "1->2"
-  canaryTag: canary-v0.0.1
-  enableIstio: true
   containers:
   - name: app
     image: nginx:alpine
     ports:
     - containerPort: 80
-  someVolume: configmap-superconf-beta

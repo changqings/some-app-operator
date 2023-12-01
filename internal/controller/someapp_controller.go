@@ -19,7 +19,9 @@ package controller
 import (
 	"context"
 	"strings"
+	"time"
 
+	"golang.org/x/time/rate"
 	istio_network_v1beta1 "istio.io/client-go/pkg/apis/networking/v1beta1"
 	apps_v1 "k8s.io/api/apps/v1"
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
@@ -27,10 +29,12 @@ import (
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/util/workqueue"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	opsv1 "github.com/changqings/some-app-operator/api/v1"
 	"github.com/changqings/some-app-operator/pkg/deployment"
@@ -147,7 +151,7 @@ func (r *SomeappReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	}
 
 	someApp.Status.Status.Phase = STATUS_RUNNING
-	someApp.Status.ObservedGeneration += 1
+	someApp.Status.ObservedGeneration = someApp.GetGeneration()
 	r.Status().Update(ctx, someApp)
 	eventRecord.Eventf(someApp, core_v1.EventTypeNormal, "Updated", "Updated someapp %s.%s", someApp.Name, someApp.Namespace)
 	return result, nil
@@ -155,6 +159,7 @@ func (r *SomeappReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *SomeappReconciler) SetupWithManager(mgr ctrl.Manager) error {
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&opsv1.Someapp{}).
 		Owns(&apps_v1.Deployment{}).
@@ -164,6 +169,15 @@ func (r *SomeappReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&istio_network_v1beta1.VirtualService{}).
 		WithOptions(controller.Options{
 			MaxConcurrentReconciles: 1,
+			RateLimiter:             someAppRateLimter(),
 		}).
+		WithEventFilter(predicate.GenerationChangedPredicate{}).
 		Complete(r)
+}
+
+// soma app reteLimiter
+func someAppRateLimter() workqueue.RateLimiter {
+	return workqueue.NewMaxOfRateLimiter(
+		workqueue.NewItemExponentialFailureRateLimiter(1*time.Second, 180*time.Second),
+		&workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Limit(5), 15)})
 }

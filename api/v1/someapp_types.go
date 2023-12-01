@@ -90,7 +90,7 @@ type SomeappSpec struct {
 type SomeappStatus struct {
 	// Important: Run "make" to regenerate code after modifying this file
 	Status             someAppSts `json:"status"`
-	ObservedGeneration int        `json:"observedGeneration"`
+	ObservedGeneration int64      `json:"observedGeneration"`
 }
 
 type someAppSts struct {
