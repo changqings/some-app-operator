@@ -147,8 +147,9 @@ func (r *SomeappReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	}
 
 	someApp.Status.Status.Phase = STATUS_RUNNING
-	eventRecord.Eventf(someApp, core_v1.EventTypeNormal, "Updated", "Updated someapp %s.%s", someApp.Name, someApp.Namespace)
+	someApp.Status.ObservedGeneration += 1
 	r.Status().Update(ctx, someApp)
+	eventRecord.Eventf(someApp, core_v1.EventTypeNormal, "Updated", "Updated someapp %s.%s", someApp.Name, someApp.Namespace)
 	return result, nil
 }
 

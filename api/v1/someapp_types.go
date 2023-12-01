@@ -89,7 +89,8 @@ type SomeappSpec struct {
 // SomeappStatus defines the observed state of Someapp
 type SomeappStatus struct {
 	// Important: Run "make" to regenerate code after modifying this file
-	Status someAppSts `json:"status"`
+	Status             someAppSts `json:"status"`
+	ObservedGeneration int        `json:"observedGeneration"`
 }
 
 type someAppSts struct {
