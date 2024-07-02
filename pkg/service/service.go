@@ -19,21 +19,24 @@ import (
 // only select someApp.Spec.AppType="api"
 // labelSelector  targetPort="http"
 type SomeService struct {
-	StandardLabels map[string]string
+	Stage string
 }
 
+// stable svc use one svc cr
+// all canary svc of same appName use one
+// use dr subset.name check out
 func (sv *SomeService) Reconcile(ctx context.Context, someApp *opsv1.Someapp, client client.Client, scheme *runtime.Scheme, log logr.Logger) error {
 
 	var (
 		selectTargetLabels = map[string]string{
-			"name":    someApp.Name,
-			"type":    someApp.Spec.AppType,
-			"app":     someApp.Spec.AppName,
-			"version": someApp.Spec.AppVersion,
+			"type":  someApp.Spec.AppType,
+			"app":   someApp.Spec.AppName,
+			"stage": sv.Stage,
 		}
 		appContainerPort  int32
 		appContainerIndex int
 		someAppContainer  = someApp.Spec.Containers
+		serviceName       = someApp.Spec.AppName
 	)
 
 	for i, c := range someApp.Spec.Containers {
@@ -44,19 +47,26 @@ func (sv *SomeService) Reconcile(ctx context.Context, someApp *opsv1.Someapp, cl
 	}
 
 	for _, v := range someAppContainer[appContainerIndex].Ports {
-		appContainerPort = v.ContainerPort
+		if v.Name == "http" || v.Name == "api" || v.Name == "" {
+			appContainerPort = v.ContainerPort
+			break
+		}
 	}
 
-	// reconcile deployment
+	if sv.Stage == "canary" {
+		serviceName = serviceName + "-canary"
+	}
+
+	// reconcile
 	service := &core_v1.Service{ObjectMeta: meta_v1.ObjectMeta{
-		Name:      someApp.Name,
+		Name:      serviceName,
 		Namespace: someApp.Namespace,
 	}}
 
 	op, err := controllerutil.CreateOrUpdate(ctx, client, service, func() error {
 
 		if service.ObjectMeta.CreationTimestamp.IsZero() {
-			service.ObjectMeta.Labels = sv.StandardLabels
+			service.ObjectMeta.Labels = selectTargetLabels
 		}
 
 		if service.ResourceVersion != "" {

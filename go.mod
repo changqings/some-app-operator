@@ -1,6 +1,6 @@
 module github.com/changqings/some-app-operator
 
-go 1.21
+go 1.22
 
 require (
 	github.com/onsi/ginkgo/v2 v2.11.0
@@ -59,7 +59,7 @@ require (
 	golang.org/x/sys v0.13.0 // indirect
 	golang.org/x/term v0.13.0 // indirect
 	golang.org/x/text v0.13.0 // indirect
-	golang.org/x/time v0.3.0 // indirect
+	golang.org/x/time v0.3.0
 	golang.org/x/tools v0.9.3 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.4.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect

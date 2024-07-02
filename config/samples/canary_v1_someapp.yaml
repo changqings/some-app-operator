@@ -1,11 +1,12 @@
 apiVersion: ops.some.cn/v1
 kind: Someapp
 metadata:
-  name: nginx-test
+  name: nginx-test-canary-v1
 spec:
   name: "nginx-test"
   type: "api"
   setHpa: "1->2"
+  version: canary-v0.0.1
   enableIstio: true
   containers:
   - name: app

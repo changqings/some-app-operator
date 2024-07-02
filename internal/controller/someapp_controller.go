@@ -93,19 +93,24 @@ func (r *SomeappReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return result, client.IgnoreNotFound(err)
 	}
 
-	// there are getting someApp, do some operation
-	if someApp.Spec.CanaryTag != "stable" {
-		someApp.Spec.AppVersion = "canary"
-	} else {
-		someApp.Spec.AppVersion = "stable"
+	nameValue := someApp.Spec.AppName
+	stage := opsv1.StableStage
+
+	if someApp.Spec.AppVersion != "stable" {
+		stage = opsv1.CanaryStage
+		nameValue = someApp.Spec.AppName + "-" + strings.ReplaceAll(someApp.Spec.AppVersion, ".", "-")
+	}
+
+	if someApp.Spec.AppType == opsv1.AppTypeScript {
+		nameValue = someApp.Spec.AppName + "-" + someApp.Name
 	}
 
 	standardLabels := map[string]string{
-		"name":    someApp.Name,
+		"name":    nameValue,
 		"app":     someApp.Spec.AppName,
 		"type":    someApp.Spec.AppType,
 		"version": someApp.Spec.AppVersion,
-		"canary":  someApp.Spec.CanaryTag,
+		"stage":   stage,
 	}
 
 	// deployment reconcile
@@ -118,7 +123,7 @@ func (r *SomeappReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	}
 
 	// hpa
-	if len(someApp.Spec.HpaNums) > 0 {
+	if len(someApp.Spec.SetHpa) > 0 {
 		sh := hpa.SomeHpa{StandardLabels: standardLabels}
 		err = sh.Reconcile(ctx, someApp, r.Client, r.Scheme, log)
 		if err != nil {
@@ -129,8 +134,8 @@ func (r *SomeappReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	}
 
 	// svc
-	if strings.HasPrefix(someApp.Spec.AppType, "api") {
-		sv := service.SomeService{StandardLabels: standardLabels}
+	if someApp.Spec.AppType == opsv1.AppTypeApi {
+		sv := service.SomeService{Stage: stage}
 		err = sv.Reconcile(ctx, someApp, r.Client, r.Scheme, log)
 		if err != nil {
 			someApp.Status.Status.Phase = STATUS_ERROR
@@ -140,8 +145,8 @@ func (r *SomeappReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 
 	}
 	// istio
-	if someApp.Spec.EnableIstio {
-		si := istio.SomeIstio{}
+	if someApp.Spec.EnableIstio && someApp.Spec.AppType == opsv1.AppTypeApi {
+		si := istio.SomeIstio{StandardLabels: standardLabels, Stage: stage}
 		err = si.Reconcile(ctx, someApp, r.Client, r.Scheme, log)
 		if err != nil {
 			someApp.Status.Status.Phase = STATUS_ERROR
@@ -169,18 +174,15 @@ func (r *SomeappReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&istio_network_v1beta1.VirtualService{}).
 		WithOptions(controller.Options{
 			MaxConcurrentReconciles: 1,
-			RateLimiter: workqueue.NewMaxOfRateLimiter(
-				workqueue.NewItemExponentialFailureRateLimiter(1*time.Second, 180*time.Second),
-				&workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Limit(5), 15)},
-			),
+			RateLimiter:             someAppRateLimter(),
 		}).
 		WithEventFilter(predicate.GenerationChangedPredicate{}).
 		Complete(r)
 }
 
 // soma app reteLimiter
-// func someAppRateLimter() workqueue.RateLimiter {
-// 	return workqueue.NewMaxOfRateLimiter(
-// 		workqueue.NewItemExponentialFailureRateLimiter(1*time.Second, 180*time.Second),
-// 		&workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Limit(5), 15)})
-// }
+func someAppRateLimter() workqueue.RateLimiter {
+	return workqueue.NewMaxOfRateLimiter(
+		workqueue.NewItemExponentialFailureRateLimiter(1*time.Second, 180*time.Second),
+		&workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Limit(5), 15)})
+}

@@ -21,66 +21,70 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+var (
+	AppTypeApi    = "api"
+	AppTypeScript = "script"
+	StableStage   = "stable"
+	CanaryStage   = "canary"
+)
+
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 // x-kubernetes-validations is beta in k8s 1.25, when < 1.24, default --feature-gates is false
 
-// SomeappSpec defines the desired state of Someapp
+// Someapp defines a set of deployment,service,hpa and istio vs/dr
 type SomeappSpec struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	// application name
 	// +kubebuilder:validation:Required
-	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="appName is immutable"
-	AppName string `json:"appName"`
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="spec.name is immutable"
+	AppName string `json:"name"`
 
-	//  prefix has api, then create svc, changed not changed
+	// AppType value only in (api,job), value immutable
+	// api will create service then will create svc
+	// job will not create service, only a deployment, and default one pods
+	// +kubebuilder:validation:Enum=api;script
 	// +kubebuilder:default=api
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="appType is immutable"
-	AppType string `json:"appType"`
-
-	// should be only in (stable,canary), default appVersion=stable,
-	// when canaryTAg!=stable, then appVerson=canary,
-	// can not changed
-	// +kubebuilder:validation:Enum=stable;canary
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="appVersion is immutable"
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="spec.type is immutable"
 	// +optional
-	AppVersion string `json:"appVersion"`
+	AppType string `json:"type"`
 
 	// used in labels,
-	// defalut canaryTag=stable, or must like canary-v1.0.0,
-	// can not changed
+	// defalut appVersion=stable, or must like canary-v1.0.0, immutable
 	// +kubebuilder:validation:Pattern=(stable|(canary-v\d+\.\d+\.\d+)(\.\d+)?)
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="canaryTag is immutable"
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="spec.version is immutable"
+	// +kubebuilder:default=stable
 	// +optional
-	CanaryTag string `json:"canaryTag"`
+	AppVersion string `json:"version"`
 
 	// +optional
 	ImagePullSecret string `json:"imageSecret"`
 
 	// k8s standard containers resources
+	// +kubebuilder:validation:Required
 	Containers []core_v1.Container `json:"containers"`
 
 	// only use configmap or secret,
-	// like configmap-a, secret-b
+	// like configmap name a, secret name b
 	// +optional
 	SomeVolume string `json:"someVolume,omitempty"`
 
 	// create hpa, with min-->max
+	// if not set, will not create hpa
 	// +kubebuilder:validation:Pattern=\d+\->\d+
 	// +optional
-	HpaNums string `json:"hpaNums,omitempty"`
+	SetHpa string `json:"setHpa,omitempty"`
 
-	// hpa default cpu usage value, defautl=100
+	// hpa default cpu usage value percent, defautl=100
 	// +kubebuilder:default=100
 	// +optional
-	HpaCpuPercent int32 `json:"hpaCpuPercent,omitempty"`
+	HpaCpuUsage int32 `json:"hpaCpuUsage,omitempty"`
 
-	// only used when apiType has prefix api,
-	// appVersion=stable, create stable vs, dr
-	// appVersion=canary and CanaryTag have values, create canary vs,dr
+	// only used when spec.type == api
+	// stage=stable, will create stable vs, dr
+	// stage=canary, will createOrPatch canary vs,dr
+	// canary vs default weight=0
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="spec.enableIstio is immutable"
 	// +kubebuilder:default=false
 	// +optional
 	EnableIstio bool `json:"enableIstio,omitempty"`

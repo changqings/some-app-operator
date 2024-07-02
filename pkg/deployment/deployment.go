@@ -35,13 +35,13 @@ func (sd *SomeDeployment) Reconcile(ctx context.Context, someApp *opsv1.Someapp,
 
 	// reconcile deployment
 	deployment := &apps_v1.Deployment{ObjectMeta: meta_v1.ObjectMeta{
-		Name:      someApp.Name,
+		Name:      sd.StandardLabels["name"],
 		Namespace: someApp.Namespace,
 	}}
 
 	op, err := controllerutil.CreateOrUpdate(ctx, client, deployment, func() error {
 
-		// check deployment if existed, if not do something
+		// check deployment existed
 		// spec.selector is immutable, so set it when create
 		if deployment.ObjectMeta.CreationTimestamp.IsZero() {
 			deployment.ObjectMeta.Labels = sd.StandardLabels
@@ -132,7 +132,7 @@ func (sd *SomeDeployment) Reconcile(ctx context.Context, someApp *opsv1.Someapp,
 				},
 			}
 		case volumeTypeUnknown:
-			log.Info("volume type unknown", "only start with configmap- or secret-, but get someVolume", someVolume)
+			log.Info("volume type unknown", "only start with configmap- or secret- will work, someVolume", someVolume)
 		}
 
 		// add reference

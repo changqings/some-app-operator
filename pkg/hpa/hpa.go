@@ -24,14 +24,14 @@ type SomeHpa struct {
 func (sh *SomeHpa) Reconcile(ctx context.Context, someApp *opsv1.Someapp, client client.Client, scheme *runtime.Scheme, log logr.Logger) error {
 
 	var (
-		someHpaNums    = someApp.Spec.HpaNums
+		someHpaNums    = someApp.Spec.SetHpa
 		hpaMin, hpaMax int64
 	)
 
 	// reconcile hpa
 	hpa := &autoscalingv2.HorizontalPodAutoscaler{
 		ObjectMeta: meta_v1.ObjectMeta{
-			Name:      someApp.Name,
+			Name:      sh.StandardLabels["name"],
 			Namespace: someApp.Namespace,
 		},
 	}
@@ -65,7 +65,7 @@ func (sh *SomeHpa) Reconcile(ctx context.Context, someApp *opsv1.Someapp, client
 			ScaleTargetRef: autoscalingv2.CrossVersionObjectReference{
 				APIVersion: "apps/v1",
 				Kind:       "Deployment",
-				Name:       someApp.Name,
+				Name:       sh.StandardLabels["name"],
 			},
 			Metrics: []autoscalingv2.MetricSpec{
 				{
@@ -73,7 +73,7 @@ func (sh *SomeHpa) Reconcile(ctx context.Context, someApp *opsv1.Someapp, client
 					Resource: &autoscalingv2.ResourceMetricSource{
 						Name: core_v1.ResourceCPU,
 						Target: autoscalingv2.MetricTarget{
-							AverageUtilization: &someApp.Spec.HpaCpuPercent,
+							AverageUtilization: &someApp.Spec.HpaCpuUsage,
 							Type:               autoscalingv2.UtilizationMetricType,
 						},
 					},

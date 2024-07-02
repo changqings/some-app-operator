@@ -1,12 +1,10 @@
 apiVersion: ops.some.cn/v1
 kind: Someapp
 metadata:
-  name: nginx-test
+  name: nginx-test-script
 spec:
   name: "nginx-test"
-  type: "api"
-  setHpa: "1->2"
-  enableIstio: true
+  type: "script"
   containers:
   - name: app
     image: nginx:alpine

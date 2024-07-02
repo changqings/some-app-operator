@@ -4,7 +4,15 @@ some app deploy with all related resources in one cr yaml
 
 ## Description
 
-a demo of kubebuilder
+- default set someapp.spec.CanaryTag=stable version
+will add deployment,service,hpa and defautl istio vs/dr
+- set someapp.spec.Canary=canary-v0.0.1
+will add deployemnt,service,hpa
+if found stable vs/dr, will create canary dr and
+patch vs canary version
+
+## todo:
+- delete canary version, with mutli canary version of spec.AppName, will not clean dr/vs
 
 ### you can config cache or controller config
 
@@ -15,7 +23,7 @@ a demo of kubebuilder
 
 ### Prerequisites
 
-- go version v1.21.0+
+- go version v1.22.0+
 - docker version 17.03+.
 - kubectl version v1.25+.
 
@@ -34,7 +42,11 @@ Make sure you have the proper permission to the registry if the above commands d
 **Install the CRDs into the cluster:**
 
 ```sh
+make manifests
 make install
+## if make install print out controller-gen error
+## please modify Makefile CONTROLLER_TOOLS_VERSION
+## version can be found on `https://github.com/kubernetes-sigs/controller-tools`
 ```
 
 **Deploy the Manager to the cluster with the image specified by `IMG`:**
