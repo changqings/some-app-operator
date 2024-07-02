@@ -169,15 +169,18 @@ func (r *SomeappReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&istio_network_v1beta1.VirtualService{}).
 		WithOptions(controller.Options{
 			MaxConcurrentReconciles: 1,
-			RateLimiter:             someAppRateLimter(),
+			RateLimiter: workqueue.NewMaxOfRateLimiter(
+				workqueue.NewItemExponentialFailureRateLimiter(1*time.Second, 180*time.Second),
+				&workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Limit(5), 15)},
+			),
 		}).
 		WithEventFilter(predicate.GenerationChangedPredicate{}).
 		Complete(r)
 }
 
 // soma app reteLimiter
-func someAppRateLimter() workqueue.RateLimiter {
-	return workqueue.NewMaxOfRateLimiter(
-		workqueue.NewItemExponentialFailureRateLimiter(1*time.Second, 180*time.Second),
-		&workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Limit(5), 15)})
-}
+// func someAppRateLimter() workqueue.RateLimiter {
+// 	return workqueue.NewMaxOfRateLimiter(
+// 		workqueue.NewItemExponentialFailureRateLimiter(1*time.Second, 180*time.Second),
+// 		&workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Limit(5), 15)})
+// }
