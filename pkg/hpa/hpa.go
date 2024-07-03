@@ -43,11 +43,6 @@ func (sh *SomeHpa) Reconcile(ctx context.Context, someApp *opsv1.Someapp, client
 			hpa.ObjectMeta.Labels = sh.StandardLabels
 		}
 
-		// update always exec, no matter what resources version changed or not
-		if hpa.ResourceVersion != "" {
-			hpa.ResourceVersion = "0"
-		}
-
 		hpaMinMaxs := strings.Split(someHpaNums, "->")
 		if len(hpaMinMaxs) == 2 {
 			hpaMin, _ = strconv.ParseInt(hpaMinMaxs[0], 10, 64)

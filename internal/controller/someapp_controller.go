@@ -33,6 +33,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
@@ -83,6 +84,18 @@ func (r *SomeappReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	someApp := &opsv1.Someapp{}
 	result := ctrl.Result{}
 
+	// get someApp from k8s cluster api, and wirte into &opsv1.SomeApp{}
+	err := r.Get(ctx, req.NamespacedName, someApp)
+	if err != nil {
+		if k8s_errors.IsNotFound(err) {
+			return result, nil
+		}
+		eventRecord.Eventf(someApp, core_v1.EventTypeWarning, "Get", "Get someapp %s.%s, %s", someApp.Name, someApp.Namespace, "not found")
+		log.Error(err, "r.Get()", "not found someApp")
+		return result, client.IgnoreNotFound(err)
+	}
+
+	// initial var
 	nameValue := someApp.Spec.AppName
 	stage := opsv1.StableStage
 
@@ -103,24 +116,38 @@ func (r *SomeappReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		"stage":   stage,
 	}
 
-	err := r.Get(ctx, req.NamespacedName, someApp)
-	if err != nil {
-		// only vs,dr share the same name, delete one of them, shoud do special action
-		if k8s_errors.IsNotFound(err) && someApp.Spec.EnableIstio {
-			si := istio.SomeIstio{StandardLabels: standardLabels, Stage: stage, DeleteAction: true}
-			err = si.Reconcile(ctx, someApp, r.Client, r.Scheme, log)
-			if err != nil {
+	// someApp add finalizer, when stage=canary, and enable istio
+	canaryFinalizerName := "ops.some.cn/finalizer"
+
+	if someApp.DeletionTimestamp.IsZero() &&
+		stage == opsv1.CanaryStage &&
+		someApp.Spec.EnableIstio &&
+		someApp.Spec.AppType == opsv1.AppTypeApi {
+
+		if !controllerutil.ContainsFinalizer(someApp, canaryFinalizerName) {
+			controllerutil.AddFinalizer(someApp, canaryFinalizerName)
+			if err := r.Update(ctx, someApp); err != nil {
 				return result, err
 			}
 			return result, nil
 		}
+	} else if !someApp.DeletionTimestamp.IsZero() {
 
-		if k8s_errors.IsNotFound(err) {
+		if controllerutil.ContainsFinalizer(someApp, canaryFinalizerName) {
+			// todo delete logical
+			si := istio.SomeIstio{Stage: stage, DeleteAction: true}
+			err = si.Reconcile(ctx, someApp, r.Client, r.Scheme, log)
+			if err != nil {
+				return result, err
+			}
+
+			// remove finalizer
+			controllerutil.RemoveFinalizer(someApp, canaryFinalizerName)
+			if err := r.Update(ctx, someApp); err != nil {
+				return result, err
+			}
 			return result, nil
 		}
-		eventRecord.Eventf(someApp, core_v1.EventTypeWarning, "Get", "Get someapp %s.%s, %s", someApp.Name, someApp.Namespace, "not found")
-		log.Error(err, "r.Get()", "not found someApp")
-		return result, client.IgnoreNotFound(err)
 	}
 
 	// deployment reconcile
@@ -156,7 +183,7 @@ func (r *SomeappReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	}
 	// istio
 	if someApp.Spec.EnableIstio && someApp.Spec.AppType == opsv1.AppTypeApi {
-		si := istio.SomeIstio{StandardLabels: standardLabels, Stage: stage, DeleteAction: false}
+		si := istio.SomeIstio{Stage: stage}
 		err = si.Reconcile(ctx, someApp, r.Client, r.Scheme, log)
 		if err != nil {
 			someApp.Status.Status.Phase = STATUS_ERROR

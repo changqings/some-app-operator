@@ -63,14 +63,10 @@ func (sv *SomeService) Reconcile(ctx context.Context, someApp *opsv1.Someapp, cl
 		Namespace: someApp.Namespace,
 	}}
 
-	op, err := controllerutil.CreateOrUpdate(ctx, client, service, func() error {
+	op, err := controllerutil.CreateOrPatch(ctx, client, service, func() error {
 
 		if service.ObjectMeta.CreationTimestamp.IsZero() {
 			service.ObjectMeta.Labels = selectTargetLabels
-		}
-
-		if service.ResourceVersion != "" {
-			service.ResourceVersion = "0"
 		}
 
 		service.Spec = core_v1.ServiceSpec{

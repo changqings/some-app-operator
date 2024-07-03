@@ -50,10 +50,6 @@ func (sd *SomeDeployment) Reconcile(ctx context.Context, someApp *opsv1.Someapp,
 			}
 
 		}
-		// update always exec, no matter what resources version changed or not
-		if deployment.ResourceVersion != "" {
-			deployment.ResourceVersion = "0"
-		}
 
 		if n := strings.TrimPrefix(someVolume, "configmap-"); len(n) > 0 {
 			volumeType = volumeTypeConfigMap

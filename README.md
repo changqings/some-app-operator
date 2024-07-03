@@ -10,6 +10,7 @@ some app deploy with all related resources in one cr yaml
   will add deployemnt,service,hpa
   if found stable vs/dr, will create canary dr and
   patch vs canary version
+- use Finallizer handle share vs/dr
 
 ## todo:
 
