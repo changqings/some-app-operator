@@ -119,20 +119,21 @@ func (r *SomeappReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	// someApp add finalizer, when stage=canary, and enable istio
 	canaryFinalizerName := "ops.some.cn/finalizer"
 
-	if someApp.DeletionTimestamp.IsZero() &&
-		stage == opsv1.CanaryStage &&
-		someApp.Spec.EnableIstio &&
-		someApp.Spec.AppType == opsv1.AppTypeApi {
+	if someApp.DeletionTimestamp.IsZero() {
+		if stage == opsv1.CanaryStage &&
+			someApp.Spec.EnableIstio &&
+			someApp.Spec.AppType == opsv1.AppTypeApi {
 
-		if !controllerutil.ContainsFinalizer(someApp, canaryFinalizerName) {
-			controllerutil.AddFinalizer(someApp, canaryFinalizerName)
-			if err := r.Update(ctx, someApp); err != nil {
-				return result, err
+			if !controllerutil.ContainsFinalizer(someApp, canaryFinalizerName) {
+				controllerutil.AddFinalizer(someApp, canaryFinalizerName)
+				if err := r.Update(ctx, someApp); err != nil {
+					return result, err
+				}
+				return result, nil
 			}
-			return result, nil
-		}
-	} else if !someApp.DeletionTimestamp.IsZero() {
 
+		}
+	} else {
 		if controllerutil.ContainsFinalizer(someApp, canaryFinalizerName) {
 			// todo delete logical
 			si := istio.SomeIstio{Stage: stage, DeleteAction: true}
