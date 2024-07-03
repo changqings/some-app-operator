@@ -21,111 +21,48 @@ import (
 // only select someApp.Spec.AppType="api"
 // labelSelector  targetPort="http"
 type SomeIstio struct {
-	StandardLabels map[string]string
-	Stage          string
+	StandardLabels   map[string]string
+	Stage            string
+	DeleteAction     bool
+	svcHost          string
+	vsHttpRouterName string
+	drName           string
+	subsetName       string
 }
 
 func (si *SomeIstio) Reconcile(ctx context.Context, someApp *opsv1.Someapp, c pkgClient.Client, scheme *runtime.Scheme, log logr.Logger) error {
-	var (
-		svcHost          = someApp.Spec.AppName + "." + someApp.Namespace + "." + "svc.cluster.local"
-		vsHttpRouterName = someApp.Spec.AppName + "-" + someApp.Spec.AppVersion
-		drName           = someApp.Spec.AppName
-		drExist          = false
-		subsetName       = strings.ReplaceAll(someApp.Spec.AppVersion, ".", "-")
-	)
 
-	if si.Stage == "canary" {
-		svcHost = someApp.Spec.AppName + "-canary." + someApp.Namespace + "." + "svc.cluster.local"
-		vsHttpRouterName = someApp.Spec.AppName + "-" + subsetName
-		drName = someApp.Spec.AppName + "-canary"
+	si.svcHost = someApp.Spec.AppName + "." + someApp.Namespace + "." + "svc.cluster.local"
+	si.vsHttpRouterName = someApp.Spec.AppName + "-" + someApp.Spec.AppVersion
+	si.drName = someApp.Spec.AppName
+	si.subsetName = strings.ReplaceAll(someApp.Spec.AppVersion, ".", "-")
+
+	if si.Stage == opsv1.CanaryStage {
+		si.svcHost = someApp.Spec.AppName + "-canary." + someApp.Namespace + "." + "svc.cluster.local"
+		si.vsHttpRouterName = someApp.Spec.AppName + "-" + si.subsetName
+		si.drName = someApp.Spec.AppName + "-canary"
 	}
+
+	if err := si.reconcileVs(ctx, someApp, c, scheme, log); err != nil {
+		return err
+	}
+
+	if err := si.reconcileDr(ctx, someApp, c, scheme, log); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (si *SomeIstio) reconcileVs(ctx context.Context, someApp *opsv1.Someapp, c pkgClient.Client, scheme *runtime.Scheme, log logr.Logger) error {
 
 	vs := &istio_network_v1beta1.VirtualService{ObjectMeta: meta_v1.ObjectMeta{
 		Name:      someApp.Spec.AppName,
 		Namespace: someApp.Namespace,
 	}}
 
-	dr := &istio_network_v1beta1.DestinationRule{ObjectMeta: meta_v1.ObjectMeta{
-		Name:      drName,
-		Namespace: someApp.Namespace,
-	}}
-
-	// create or patch dr
-	// check dr exist,
-	dr_key := pkgClient.ObjectKeyFromObject(dr)
-	err_get_dr := c.Get(ctx, dr_key, dr)
-	if err_get_dr == nil {
-		drExist = true
-	}
-
-	if si.Stage == opsv1.StableStage || !drExist {
-		op_dr, err := controllerutil.CreateOrUpdate(ctx, c, dr, func() error {
-
-			if dr.ObjectMeta.CreationTimestamp.IsZero() {
-				dr.ObjectMeta.Labels = si.StandardLabels
-			}
-
-			dr.Spec = istio_api_network_v1beta1.DestinationRule{
-				Host: svcHost,
-				Subsets: []*istio_api_network_v1beta1.Subset{
-					{
-						Labels: map[string]string{
-							"version": someApp.Spec.AppVersion,
-						},
-						Name: subsetName,
-					},
-				},
-			}
-
-			if err := controllerutil.SetOwnerReference(someApp, dr, scheme); err != nil {
-				return err
-			}
-
-			return nil
-		})
-
-		if err != nil {
-			return err
-		}
-		log.Info("dr reconcile success", "operation_result", op_dr)
-
-	} else if si.Stage == opsv1.CanaryStage && drExist {
-
-		var subsetExisting bool
-
-		// check subset.Name already exist in dr
-		for _, v := range dr.Spec.Subsets {
-			if v.Name == subsetName {
-				subsetExisting = true
-				break
-			}
-		}
-
-		// do patch
-		if !subsetExisting {
-			existing_dr := dr.DeepCopy()
-
-			existing_dr.Spec.Subsets = append(existing_dr.Spec.Subsets, &istio_api_network_v1beta1.Subset{
-				Labels: map[string]string{
-					"version": someApp.Spec.AppVersion,
-				},
-				Name: subsetName,
-			})
-
-			// update
-			if err := c.Update(ctx, existing_dr); err != nil {
-				return err
-			}
-			log.Info("canary dr reconcile success", "operation_result", controllerutil.OperationResultUpdated)
-
-		}
-
-	}
-
-	// create or patch vs
-	// stage on stable, create stable vs
-	// stabe on canary, patch on stable vs
-	if si.Stage == opsv1.StableStage {
+	// stable stage, create vs
+	if !si.DeleteAction && si.Stage == opsv1.StableStage {
 		op_vs, err := controllerutil.CreateOrUpdate(ctx, c, vs, func() error {
 
 			if vs.ObjectMeta.CreationTimestamp.IsZero() {
@@ -135,16 +72,16 @@ func (si *SomeIstio) Reconcile(ctx context.Context, someApp *opsv1.Someapp, c pk
 			vs.Spec = istio_api_network_v1beta1.VirtualService{
 				Gateways: []string{"mesh"},
 				Hosts: []string{
-					svcHost,
+					si.svcHost,
 				},
 				Http: []*istio_api_network_v1beta1.HTTPRoute{
 					{
-						Name: vsHttpRouterName,
+						Name: si.vsHttpRouterName,
 						Route: []*istio_api_network_v1beta1.HTTPRouteDestination{
 							{
 								Destination: &istio_api_network_v1beta1.Destination{
-									Host:   svcHost,
-									Subset: subsetName,
+									Host:   si.svcHost,
+									Subset: si.subsetName,
 								},
 								Weight: 0,
 							},
@@ -165,53 +102,169 @@ func (si *SomeIstio) Reconcile(ctx context.Context, someApp *opsv1.Someapp, c pk
 		}
 
 		log.Info("vs reconcile success", "operation_result", op_vs)
-	} else {
-		// do patch
+		return nil
+	}
 
-		//get
-		key := pkgClient.ObjectKeyFromObject(vs)
-		if err := c.Get(ctx, key, vs); err != nil {
-			if !apierrors.IsNotFound(err) {
-				return err
+	// canary stage, delete or  patch vs
+	key := pkgClient.ObjectKeyFromObject(vs)
+	if err := c.Get(ctx, key, vs); err != nil {
+		if apierrors.IsNotFound(err) {
+			log.Error(err, "stable vs not found", "vs_name", vs.Name, "vs_namespace", vs.Namespace)
+			return nil
+		}
+		return err
+	}
+	existing_vs := vs.DeepCopy()
+
+	if si.DeleteAction {
+		for i, v := range existing_vs.Spec.Http {
+			if v.Name == si.subsetName {
+				existing_vs.Spec.Http = append(existing_vs.Spec.Http[:i], existing_vs.Spec.Http[i+1:]...)
+				break
 			}
 		}
+	} else {
 		// modify
 		var indexStableRouter int
+		var canaryRouterExist bool
 
-		for i, v := range vs.Spec.Http {
+		for i, v := range existing_vs.Spec.Http {
 			if v.Name == someApp.Spec.AppName+"-stable" {
 				indexStableRouter = i
+				break
 			}
 		}
 
-		existing_vs := vs.DeepCopy()
-
-		for i, v := range existing_vs.Spec.Http[indexStableRouter].Route {
-			if v.Destination.Subset == "stable" {
-				existing_vs.Spec.Http[indexStableRouter].Route[i].Weight = 100
+		for _, v := range existing_vs.Spec.Http {
+			if v.Name == si.vsHttpRouterName {
+				canaryRouterExist = true
+				break
 			}
 		}
+		if !canaryRouterExist {
+			for i, v := range existing_vs.Spec.Http[indexStableRouter].Route {
+				if v.Destination.Subset == "stable" {
+					existing_vs.Spec.Http[indexStableRouter].Route[i].Weight = 100
+				}
+			}
 
-		canaryHttpRouter := &istio_api_network_v1beta1.HTTPRoute{
-			Name: vsHttpRouterName,
-			Route: append(existing_vs.Spec.Http[indexStableRouter].Route, &istio_api_network_v1beta1.HTTPRouteDestination{
-				Destination: &istio_api_network_v1beta1.Destination{
-					Host:   svcHost,
-					Subset: subsetName,
+			canaryHttpRouter := &istio_api_network_v1beta1.HTTPRoute{
+				Name: si.vsHttpRouterName,
+				Route: append(existing_vs.Spec.Http[indexStableRouter].Route, &istio_api_network_v1beta1.HTTPRouteDestination{
+					Destination: &istio_api_network_v1beta1.Destination{
+						Host:   si.svcHost,
+						Subset: si.subsetName,
+					},
+					Weight: 0,
+				}),
+			}
+
+			existing_vs.Spec.Http = append(existing_vs.Spec.Http[:indexStableRouter],
+				append([]*istio_api_network_v1beta1.HTTPRoute{canaryHttpRouter}, existing_vs.Spec.Http[indexStableRouter:]...)...)
+		}
+
+	}
+
+	// update
+	if err := c.Update(ctx, existing_vs); err != nil {
+		return err
+	}
+	log.Info("canary vs reconcile success", "operation_result", controllerutil.OperationResultUpdated)
+
+	return nil
+}
+func (si *SomeIstio) reconcileDr(ctx context.Context, someApp *opsv1.Someapp, c pkgClient.Client, scheme *runtime.Scheme, log logr.Logger) error {
+
+	dr := &istio_network_v1beta1.DestinationRule{ObjectMeta: meta_v1.ObjectMeta{
+		Name:      si.drName,
+		Namespace: someApp.Namespace,
+	}}
+
+	// create or patch dr
+	// check dr exist,
+	drExist := false
+	dr_key := pkgClient.ObjectKeyFromObject(dr)
+
+	if err := c.Get(ctx, dr_key, dr); err != nil {
+		drExist = true
+	}
+
+	// create dr
+	if !si.DeleteAction && (si.Stage == opsv1.StableStage || !drExist) {
+		op_dr, err := controllerutil.CreateOrUpdate(ctx, c, dr, func() error {
+
+			// patch canary subsetName on annotation, for delete  use
+			if dr.ObjectMeta.CreationTimestamp.IsZero() {
+				dr.ObjectMeta.Labels = si.StandardLabels
+			}
+
+			dr.Spec = istio_api_network_v1beta1.DestinationRule{
+				Host: si.svcHost,
+				Subsets: []*istio_api_network_v1beta1.Subset{
+					{
+						Labels: map[string]string{
+							"version": someApp.Spec.AppVersion,
+						},
+						Name: si.subsetName,
+					},
 				},
-				Weight: 0,
-			}),
-		}
+			}
 
-		existing_vs.Spec.Http = append(existing_vs.Spec.Http[:indexStableRouter],
-			append([]*istio_api_network_v1beta1.HTTPRoute{canaryHttpRouter}, existing_vs.Spec.Http[indexStableRouter:]...)...)
+			if err := controllerutil.SetOwnerReference(someApp, dr, scheme); err != nil {
+				return err
+			}
 
-		// update
-		if err := c.Update(ctx, existing_vs); err != nil {
+			return nil
+		})
+
+		if err != nil {
 			return err
 		}
-		log.Info("canary vs reconcile success", "operation_result", controllerutil.OperationResultUpdated)
+		log.Info("dr reconcile success", "operation_result", op_dr)
+		return nil
 
+	}
+
+	// delete or patch dr
+	if si.Stage == opsv1.CanaryStage && drExist {
+
+		var subsetExisting bool
+		var subsetIndex int
+		existing_dr := dr.DeepCopy()
+
+		// check subset.Name already exist in dr
+		for i, v := range dr.Spec.Subsets {
+			if v.Name == si.subsetName {
+				subsetExisting = true
+				subsetIndex = i
+				break
+			}
+		}
+
+		if si.DeleteAction && subsetExisting {
+			// delete dr
+			existing_dr.Spec.Subsets = append(existing_dr.Spec.Subsets[:subsetIndex], existing_dr.Spec.Subsets[subsetIndex+1:]...)
+		} else if !subsetExisting {
+			existing_dr.Annotations[someApp.Name] = si.subsetName
+
+			existing_dr.Spec.Subsets = append(existing_dr.Spec.Subsets, &istio_api_network_v1beta1.Subset{
+				Labels: map[string]string{
+					"version": someApp.Spec.AppVersion,
+				},
+				Name: si.subsetName,
+			})
+
+			if err := controllerutil.SetOwnerReference(someApp, dr, scheme); err != nil {
+				return err
+			}
+
+		}
+		// update
+		if err := c.Update(ctx, existing_dr); err != nil {
+			return err
+		}
+
+		log.Info("canary dr reconcile success", "operation_result", controllerutil.OperationResultUpdated)
 	}
 
 	return nil

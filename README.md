@@ -5,14 +5,13 @@ some app deploy with all related resources in one cr yaml
 ## Description
 
 - default set someapp.spec.CanaryTag=stable version
-will add deployment,service,hpa and defautl istio vs/dr
+  will add deployment,service,hpa and defautl istio vs/dr
 - set someapp.spec.Canary=canary-v0.0.1
-will add deployemnt,service,hpa
-if found stable vs/dr, will create canary dr and
-patch vs canary version
+  will add deployemnt,service,hpa
+  if found stable vs/dr, will create canary dr and
+  patch vs canary version
 
 ## todo:
-- delete canary version, with mutli canary version of spec.AppName, will not clean dr/vs
 
 ### you can config cache or controller config
 

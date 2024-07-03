@@ -83,16 +83,6 @@ func (r *SomeappReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	someApp := &opsv1.Someapp{}
 	result := ctrl.Result{}
 
-	err := r.Get(ctx, req.NamespacedName, someApp)
-	if err != nil {
-		if k8s_errors.IsNotFound(err) {
-			return result, nil
-		}
-		eventRecord.Eventf(someApp, core_v1.EventTypeWarning, "Get", "Get someapp %s.%s, %s", someApp.Name, someApp.Namespace, "not found")
-		log.Error(err, "r.Get()", "not found someApp")
-		return result, client.IgnoreNotFound(err)
-	}
-
 	nameValue := someApp.Spec.AppName
 	stage := opsv1.StableStage
 
@@ -111,6 +101,26 @@ func (r *SomeappReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		"type":    someApp.Spec.AppType,
 		"version": someApp.Spec.AppVersion,
 		"stage":   stage,
+	}
+
+	err := r.Get(ctx, req.NamespacedName, someApp)
+	if err != nil {
+		// only vs,dr share the same name, delete one of them, shoud do special action
+		if k8s_errors.IsNotFound(err) && someApp.Spec.EnableIstio {
+			si := istio.SomeIstio{StandardLabels: standardLabels, Stage: stage, DeleteAction: true}
+			err = si.Reconcile(ctx, someApp, r.Client, r.Scheme, log)
+			if err != nil {
+				return result, err
+			}
+			return result, nil
+		}
+
+		if k8s_errors.IsNotFound(err) {
+			return result, nil
+		}
+		eventRecord.Eventf(someApp, core_v1.EventTypeWarning, "Get", "Get someapp %s.%s, %s", someApp.Name, someApp.Namespace, "not found")
+		log.Error(err, "r.Get()", "not found someApp")
+		return result, client.IgnoreNotFound(err)
 	}
 
 	// deployment reconcile
@@ -146,7 +156,7 @@ func (r *SomeappReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	}
 	// istio
 	if someApp.Spec.EnableIstio && someApp.Spec.AppType == opsv1.AppTypeApi {
-		si := istio.SomeIstio{StandardLabels: standardLabels, Stage: stage}
+		si := istio.SomeIstio{StandardLabels: standardLabels, Stage: stage, DeleteAction: false}
 		err = si.Reconcile(ctx, someApp, r.Client, r.Scheme, log)
 		if err != nil {
 			someApp.Status.Status.Phase = STATUS_ERROR
