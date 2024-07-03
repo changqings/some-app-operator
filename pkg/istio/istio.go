@@ -2,7 +2,6 @@ package istio
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -249,9 +248,7 @@ func (si *SomeIstio) reconcileDr(ctx context.Context, someApp *opsv1.Someapp, c 
 		}
 
 		if si.DeleteAction && subsetExisting {
-			fmt.Printf("dr delete: dr.subset.index=%d, len=%d\n", subsetIndex, len(existing_dr.Spec.Subsets))
 			existing_dr.Spec.Subsets = append(existing_dr.Spec.Subsets[:subsetIndex], existing_dr.Spec.Subsets[subsetIndex+1:]...)
-			fmt.Printf("dr delete: dr.subset=%#v\n", existing_dr.Spec.Subsets)
 		} else if !si.DeleteAction && !subsetExisting {
 			existing_dr.Spec.Subsets = append(existing_dr.Spec.Subsets, &istio_api_network_v1beta1.Subset{
 				Labels: map[string]string{
