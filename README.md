@@ -4,9 +4,9 @@ some app deploy with all related resources in one cr yaml
 
 ## Description
 
-- default set someapp.spec.CanaryTag=stable version
+- default set someapp.spec.version=stable
   will add deployment,service,hpa and defautl istio vs/dr
-- set someapp.spec.Canary=canary-v0.0.1
+- set someapp.spec.version=canary-v0.0.1
   will add deployemnt,service,hpa
   if found stable vs/dr, will create canary dr and
   patch vs canary version

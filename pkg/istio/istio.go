@@ -112,7 +112,8 @@ func (si *SomeIstio) reconcileVs(ctx context.Context, someApp *opsv1.Someapp, c 
 	key := pkgClient.ObjectKeyFromObject(vs)
 	if err := c.Get(ctx, key, vs); err != nil {
 		if apierrors.IsNotFound(err) {
-			log.Error(err, "stable vs not found", "vs_name", vs.Name, "vs_namespace", vs.Namespace)
+			log.Info("stable vs not found", "vs_name", vs.Name, "vs_namespace", vs.Namespace)
+			// return nil will not enqueue this cr
 			return nil
 		}
 		return err
@@ -184,15 +185,18 @@ func (si *SomeIstio) reconcileDr(ctx context.Context, someApp *opsv1.Someapp, c 
 
 	// create or patch dr
 	// check dr exist,
-	drExist := false
 	dr_key := pkgClient.ObjectKeyFromObject(dr)
 
-	if err := c.Get(ctx, dr_key, dr); err == nil {
-		drExist = true
+	if err := c.Get(ctx, dr_key, dr); err != nil {
+		if apierrors.IsNotFound(err) {
+			log.Info("stable dr not found", "dr_name", dr.Name, "dr_namespace", dr.Namespace)
+			// return nil will not enqueue this cr
+			return nil
+		}
 	}
 
 	// create dr
-	if !si.DeleteAction && (si.Stage == opsv1.StableStage || !drExist) {
+	if !si.DeleteAction && si.Stage == opsv1.StableStage {
 		op_dr, err := controllerutil.CreateOrUpdate(ctx, c, dr, func() error {
 
 			// patch canary subsetName on annotation, for delete  use
@@ -232,7 +236,7 @@ func (si *SomeIstio) reconcileDr(ctx context.Context, someApp *opsv1.Someapp, c 
 	}
 
 	// patch dr
-	if si.Stage == opsv1.CanaryStage && drExist {
+	if si.Stage == opsv1.CanaryStage {
 
 		subsetExisting := false
 		subsetIndex := 0
