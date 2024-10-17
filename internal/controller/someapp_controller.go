@@ -84,7 +84,7 @@ func (r *SomeappReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	someApp := &opsv1.Someapp{}
 	result := ctrl.Result{}
 
-	// get someApp from k8s cluster api, and wirte into &opsv1.SomeApp{}
+	// get someApp from k8s cluster api, and write into &opsv1.SomeApp{}
 	err := r.Get(ctx, req.NamespacedName, someApp)
 	if err != nil {
 		if k8s_errors.IsNotFound(err) {
