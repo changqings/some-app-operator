@@ -119,6 +119,7 @@ func (r *SomeappReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	// someApp add finalizer, when stage=canary, and enable istio
 	canaryFinalizerName := "ops.some.cn/finalizer"
 
+	// if not deleted (when delete, DeleteionTimestamp is not zero), add finalizer
 	if someApp.DeletionTimestamp.IsZero() {
 		if stage == opsv1.CanaryStage &&
 			someApp.Spec.EnableIstio &&
@@ -133,6 +134,7 @@ func (r *SomeappReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			}
 
 		}
+		// if deleted, handler resources and delete finalizer
 	} else {
 		if controllerutil.ContainsFinalizer(someApp, canaryFinalizerName) {
 			// todo delete logical
