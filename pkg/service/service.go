@@ -88,7 +88,6 @@ func (sv *SomeService) Reconcile(ctx context.Context, someApp *opsv1.Someapp, cl
 
 		return nil
 	})
-
 	if err != nil {
 		return err
 	}

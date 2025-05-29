@@ -50,6 +50,7 @@ const (
 	STATUS_UPDATING    = "Updatting"
 	STATUS_CREATE      = "Creating"
 	STATUS_ERROR       = "Error"
+	requeueAfter       = time.Second * 5
 )
 
 // SomeappReconciler reconciles a Someapp object
@@ -78,11 +79,13 @@ type SomeappReconciler struct {
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.16.3/pkg/reconcile
 func (r *SomeappReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx).WithValues("someapp-reconcile", req.NamespacedName)
-	// timeAfter := time.Second * 60
 	eventRecord := r.EventRecorder
 
 	someApp := &opsv1.Someapp{}
 	result := ctrl.Result{}
+	resultWithRequeue := ctrl.Result{
+		RequeueAfter: requeueAfter,
+	}
 
 	// get someApp from k8s cluster api, and write into &opsv1.SomeApp{}
 	err := r.Get(ctx, req.NamespacedName, someApp)
@@ -121,33 +124,38 @@ func (r *SomeappReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 
 	// if not deleted (when delete, DeleteionTimestamp is not zero), add finalizer
 	if someApp.DeletionTimestamp.IsZero() {
+		// if stage=canary, and enable istio, and apiType, then add finalizer
 		if stage == opsv1.CanaryStage &&
 			someApp.Spec.EnableIstio &&
 			someApp.Spec.AppType == opsv1.AppTypeApi {
-
 			if !controllerutil.ContainsFinalizer(someApp, canaryFinalizerName) {
-				controllerutil.AddFinalizer(someApp, canaryFinalizerName)
-				if err := r.Update(ctx, someApp); err != nil {
-					return result, err
+				// try add Finalizer
+				if controllerutil.AddFinalizer(someApp, canaryFinalizerName) {
+					err := r.Update(ctx, someApp)
+					if err != nil {
+						return result, err
+					}
+					return result, nil
 				}
-				return result, nil
 			}
 
 		}
-		// if deleted, handler resources and delete finalizer
 	} else {
+		// if get deleted reconcile, handle with resources and delete finalizer
 		if controllerutil.ContainsFinalizer(someApp, canaryFinalizerName) {
-			// todo delete logical
+			// delete logical
 			si := istio.SomeIstio{Stage: stage, DeleteAction: true}
 			err = si.Reconcile(ctx, someApp, r.Client, r.Scheme, log)
 			if err != nil {
-				return result, err
+				return resultWithRequeue, err
 			}
 
 			// remove finalizer
-			controllerutil.RemoveFinalizer(someApp, canaryFinalizerName)
-			if err := r.Update(ctx, someApp); err != nil {
-				return result, err
+			if controllerutil.RemoveFinalizer(someApp, canaryFinalizerName) {
+				err := r.Update(ctx, someApp)
+				if err != nil {
+					return resultWithRequeue, err
+				}
 			}
 			return result, nil
 		}
@@ -158,8 +166,11 @@ func (r *SomeappReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	err = sd.Reconcile(ctx, someApp, r.Client, r.Scheme, log)
 	if err != nil {
 		someApp.Status.Status.Phase = STATUS_ERROR
-		r.Status().Update(ctx, someApp)
-		return result, err
+		err := r.Status().Update(ctx, someApp)
+		if err != nil {
+			return resultWithRequeue, err
+		}
+		return result, nil
 	}
 
 	// hpa
@@ -168,8 +179,11 @@ func (r *SomeappReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		err = sh.Reconcile(ctx, someApp, r.Client, r.Scheme, log)
 		if err != nil {
 			someApp.Status.Status.Phase = STATUS_ERROR
-			r.Status().Update(ctx, someApp)
-			return result, err
+			err := r.Status().Update(ctx, someApp)
+			if err != nil {
+				return resultWithRequeue, err
+			}
+			return resultWithRequeue, nil
 		}
 	}
 
@@ -179,8 +193,11 @@ func (r *SomeappReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		err = sv.Reconcile(ctx, someApp, r.Client, r.Scheme, log)
 		if err != nil {
 			someApp.Status.Status.Phase = STATUS_ERROR
-			r.Status().Update(ctx, someApp)
-			return result, err
+			err := r.Status().Update(ctx, someApp)
+			if err != nil {
+				return resultWithRequeue, err
+			}
+			return resultWithRequeue, nil
 		}
 
 	}
@@ -190,14 +207,20 @@ func (r *SomeappReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		err = si.Reconcile(ctx, someApp, r.Client, r.Scheme, log)
 		if err != nil {
 			someApp.Status.Status.Phase = STATUS_ERROR
-			r.Status().Update(ctx, someApp)
-			return result, err
+			err := r.Status().Update(ctx, someApp)
+			if err != nil {
+				return resultWithRequeue, err
+			}
+			return resultWithRequeue, nil
 		}
 	}
 
 	someApp.Status.Status.Phase = STATUS_RUNNING
 	someApp.Status.ObservedGeneration = someApp.GetGeneration()
-	r.Status().Update(ctx, someApp)
+	err = r.Status().Update(ctx, someApp)
+	if err != nil {
+		return resultWithRequeue, err
+	}
 	eventRecord.Eventf(someApp, core_v1.EventTypeNormal, "Updated", "Updated someapp %s.%s", someApp.Name, someApp.Namespace)
 	return result, nil
 }

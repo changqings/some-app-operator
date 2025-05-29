@@ -138,7 +138,6 @@ func (sd *SomeDeployment) Reconcile(ctx context.Context, someApp *opsv1.Someapp,
 
 		return nil
 	})
-
 	if err != nil {
 		return err
 	}

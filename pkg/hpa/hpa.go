@@ -37,7 +37,6 @@ func (sh *SomeHpa) Reconcile(ctx context.Context, someApp *opsv1.Someapp, client
 	}
 
 	op, err := controllerutil.CreateOrUpdate(ctx, client, hpa, func() error {
-
 		// check  if existed, if not do something
 		if hpa.ObjectMeta.CreationTimestamp.IsZero() {
 			hpa.ObjectMeta.Labels = sh.StandardLabels
@@ -83,7 +82,6 @@ func (sh *SomeHpa) Reconcile(ctx context.Context, someApp *opsv1.Someapp, client
 
 		return nil
 	})
-
 	if err != nil {
 		return err
 	}
